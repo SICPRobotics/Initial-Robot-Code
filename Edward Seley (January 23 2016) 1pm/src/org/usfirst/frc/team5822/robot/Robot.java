@@ -18,14 +18,14 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
  * directory.
  */
 public class Robot extends IterativeRobot {
-	RobotDrive myRobotx;
-	RobotDrive myRobotj;
+	RobotDrive myRobot; 
+	
     JoystickButton motorbutton;
-	//Joystick jstick;
-	Joystick xstick;
+    JoystickButton motorbutton2; 
+	Joystick stick; 
 	int autoLoopCounter;
-	boolean button;
-	VictorSP motor;
+	
+	VictorSP motor; //any extra single motor 
 	
 	
     /**
@@ -33,12 +33,13 @@ public class Robot extends IterativeRobot {
      * used for any initialization code.
      */
     public void robotInit() {
-    	//myRobotx = new RobotDrive(4, 7);
-    	myRobotx = new RobotDrive(0, 1, 2, 3);
-    	xstick = new Joystick(0);
     	
-    	motorbutton = new JoystickButton(xstick, 1);
-        motor = new VictorSP(4);
+    	myRobot = new RobotDrive(0, 1, 2, 3);
+    	stick = new Joystick(0);
+    	
+    	motorbutton = new JoystickButton(stick, 1); //this controls the A button
+    	motorbutton2 = new JoystickButton (stick, 2); //this controls the B button
+        motor = new VictorSP(5); //this goes to the fifth PWN channel
     	
     	
     	
@@ -57,10 +58,10 @@ public class Robot extends IterativeRobot {
     public void autonomousPeriodic() {
     	if(autoLoopCounter < 100) //Check if we've completed 100 loops (approximately 2 seconds)
 		{
-			myRobotj.drive(-0.5, 0.0); 	// drive forwards half speed
+			myRobot.drive(-0.5, 0.0); 	// drive forwards half speed
 			autoLoopCounter++;
 			} else {
-			myRobotj.drive(0.0, 0.0); 	// stop robot
+			myRobot.drive(0.0, 0.0); 	// stop robot
 		}
     }
     
@@ -76,21 +77,34 @@ public class Robot extends IterativeRobot {
      */
     public void teleopPeriodic() {
         
-    	//motor.set(1);
-    myRobotx.arcadeDrive(xstick);
+    myRobot.arcadeDrive(stick);
     
     
-    	for (int x = 0; x < 10; x++){
+    	for (int x = 0; x < 10; x++)
+    	{
       
+  
     		boolean yesorno = motorbutton.get();
-    		if (yesorno == true){
-    		motor.set(1);}
+    		
+    		if (yesorno == true)
+    		{
+    		motor.set(0.3);
+    		}
     
-    if (yesorno == false)
-    motor.set(0);
+    		
+   
     
-    x--;
+	    x--;
+	    
+	    boolean yes2 = motorbutton2.get(); 
+	    
+	    if (yes2)
+	    		motor.set(-0.3);
+	    if (yesorno == false && yes2 ==false)
+	    	motor.set(0);
+   
     	}
+    	
     
     	}
     
