@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
  * directory.
  */
 public class Robot extends IterativeRobot {
+	//Haffner comment
 	RobotDrive myRobot; 
 	
     JoystickButton motorbutton;
