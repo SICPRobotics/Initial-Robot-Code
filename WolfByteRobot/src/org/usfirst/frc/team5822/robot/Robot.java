@@ -57,6 +57,7 @@ public class Robot extends IterativeRobot {
      */
     public void teleopPeriodic() {
         myRobot.arcadeDrive(stick);
+        //TEST DOMINIC
     }
     
     /**
