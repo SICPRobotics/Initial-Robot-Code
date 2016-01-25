@@ -2,7 +2,7 @@ package org.usfirst.frc.team5822.robot;
 
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.RobotDrive;
+import edu.wpi.first.wpilibj.SICPRobotDrive;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 
 /**
@@ -13,7 +13,7 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
  * directory.
  */
 public class Robot extends IterativeRobot {
-	RobotDrive myRobot;
+	SICPRobotDrive myRobot;
 	Joystick stick;
 	int autoLoopCounter;
 	
@@ -22,7 +22,7 @@ public class Robot extends IterativeRobot {
      * used for any initialization code.
      */
     public void robotInit() {
-    	myRobot = new RobotDrive(0,1, 2, 3);
+    	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	stick = new Joystick(0);
     }
     
