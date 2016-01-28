@@ -22,6 +22,8 @@ public class Robot extends IterativeRobot {
 	int autoLoopCounter;
 	Gyro gyro = new AnalogGyro(1);
 	double Kp = 0.03; 
+	boolean buttonPressedA;
+    boolean buttonPressedB;
 			
 	
 	
@@ -107,8 +109,8 @@ public class Robot extends IterativeRobot {
  
            
    		while(isEnabled()){
-   			boolean buttonPressedA = motorButtonA.get();
-   	        boolean buttonPressedB = motorbuttonB.get();
+   			buttonPressedA = motorButtonA.get();
+   	        buttonPressedB = motorbuttonB.get();
    			if (buttonPressedA == true){
    				intake.arcadeDrive(0.4, 0);}
    			if (buttonPressedB == true){
