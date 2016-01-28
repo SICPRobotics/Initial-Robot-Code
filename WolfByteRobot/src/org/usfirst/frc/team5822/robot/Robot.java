@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.SICPRobotDrive;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 
@@ -24,8 +25,8 @@ public class Robot extends IterativeRobot {
 	double Kp = 0.03; 
 	boolean buttonPressedA;
     boolean buttonPressedB;
-			
-	
+	JoystickButton motorButtonA;		
+	JoystickButton motorButtonB;	
 	
 	
     /**
@@ -33,6 +34,8 @@ public class Robot extends IterativeRobot {
      * used for any initialization code.
      */
     public void robotInit() {
+    	motorButtonA = new JoystickButton(stick, 1);
+    	motorButtonB = new JoystickButton(stick, 2);
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	stick = new Joystick(0);
     }
