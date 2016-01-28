@@ -119,16 +119,15 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
 
         myRobot.arcadeDrive(stick);
- 
-           
+                
    		while(isEnabled()){
-   			buttonPressedA = motorButtonA.get();
-   	        buttonPressedB = motorButtonB.get();
-   			if (buttonPressedA == true){
+   			//buttonPressedA = motorButtonA.get();
+   	       // buttonPressedB = motorButtonB.get();
+   			if (stick.getRawButton(1) == true){
    				intake.arcadeDrive(0.4, 0);}
-   			if (buttonPressedB == true){
+   			if (stick.getRawButton(2) == true){
    				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
-   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+   				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
    				intake.arcadeDrive(0.4, 0);}
    			}//End if Button Pressed  		
    		}//End While isEnabled
