@@ -1,9 +1,9 @@
 package org.usfirst.frc.team5822.robot;
 
 import edu.wpi.first.wpilibj.AnalogGyro;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.SICPRobotDrive;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
@@ -17,9 +17,10 @@ import edu.wpi.first.wpilibj.livewindow.LiveWindow;
  */
 public class Robot extends IterativeRobot {
 	SICPRobotDrive myRobot;
-	SICPRobotDrive autoRobot;
+	SICPRobotDrive intake; 
 	Joystick stick;
 	int autoLoopCounter;
+	double speedCountTest; 
 	Gyro gyro = new AnalogGyro(1);
 	double Kp = 0.03; 
 			
@@ -30,8 +31,11 @@ public class Robot extends IterativeRobot {
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
      */
-    public void robotInit() {
-    	myRobot = new SICPRobotDrive(0, 1, 2, 3);
+    public void robotInit() 
+    {
+    	System.out.println("robotInit");
+    	
+    	myRobot = new SICPRobotDrive(0, 1, 2, 3);    		
     	stick = new Joystick(0);
     }
     
@@ -42,6 +46,8 @@ public class Robot extends IterativeRobot {
     {
     	
     	autoLoopCounter = 0;
+    	
+    	System.out.println("We have been through autonomousInit");
     	
     	
     }
@@ -63,9 +69,9 @@ public class Robot extends IterativeRobot {
     	//this is test code for the gyro. if it works, 
     	//it should make the robot go forward straight in autonomous 
     	//added by Greta Rauch 1-26 
+    	//this has yet to be run
     
-    	autoRobot = new SICPRobotDrive(0, 1, 2, 3); 
-    	gyro.reset();
+    	    /*	gyro.reset();
     	
     	if (autoLoopCounter==0)
     	{
@@ -83,12 +89,20 @@ public class Robot extends IterativeRobot {
     		autoLoopCounter ++; 
     	}
     	
-    	autoRobot.drive(0.0, 0.0);
+    	autoRobot.drive(0.0, 0.0);*/
     	
-    	while (isAutonomous()&&isEnabled())
-    	{
-    		autoRobot.drive(0.15, 0.0);
-    	}
+    	   	
+    	//this code below speeds the robot up and works! 
+    	
+    	System.out.println("autonomousPeriodic; " + speedCountTest);
+    	
+    	myRobot.drive(speedCountTest, 0.0);
+    	
+    	Timer.delay(0.004);
+    	speedCountTest += 0.001; 
+    	
+    	if (speedCountTest>0.5)
+    		speedCountTest = 0; 
     	
     	
     }
@@ -103,8 +117,21 @@ public class Robot extends IterativeRobot {
      * This function is called periodically during operator control
      */
     public void teleopPeriodic() {
-        myRobot.arcadeDrive(stick);
+    	
+    	
+    	
+    	System.out.println("Gyro Angle:" + gyro.getAngle());
+    	Timer.delay(1);
+    	
+        /*intake.arcadeDrive(stick);*/
+        
         //TEST DOMINIC
+        
+        //this is a test for the ball input. Written by Greta 1.27
+        
+      
+      /*  intake.setInvertedMotor(motor, true); //this line is only if needed
+*/        
     }
     
     /**
