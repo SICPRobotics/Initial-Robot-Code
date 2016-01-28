@@ -108,7 +108,7 @@ public class Robot extends IterativeRobot {
    				intake.arcadeDrive(0.4, 0);}
    			if (stick.getRawButton(2) == true){
    				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
-   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+   				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
    				intake.arcadeDrive(0.4, 0);}
    			}//End if Button Pressed  		
    		}//End While isEnabled
