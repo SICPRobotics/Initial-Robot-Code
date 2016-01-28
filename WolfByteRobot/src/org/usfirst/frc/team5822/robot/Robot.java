@@ -38,7 +38,7 @@ public class Robot extends IterativeRobot {
     	motorButtonA = new JoystickButton(stick, 1);
     	motorButtonB = new JoystickButton(stick, 2);
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
-    	intake = new SICPRobotDrive(4, 5);
+    	intake = new SICPRobotDrive(5, 6);
     	stick = new Joystick(0);  	
     }//End robotInit
     
@@ -124,11 +124,13 @@ public class Robot extends IterativeRobot {
    			//buttonPressedA = motorButtonA.get();
    	       // buttonPressedB = motorButtonB.get();
    			if (stick.getRawButton(1) == true){
-   				intake.arcadeDrive(0.4, 0);}
+   			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
+   			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+   				intake.arcadeDrive(0.7, 0);}
    			if (stick.getRawButton(2) == true){
-   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
-   				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
-   				intake.arcadeDrive(0.4, 0);}
+   				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
+   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+   				intake.arcadeDrive(0.7, 0);}
    			}//End if Button Pressed  		
    		}//End While isEnabled
  
