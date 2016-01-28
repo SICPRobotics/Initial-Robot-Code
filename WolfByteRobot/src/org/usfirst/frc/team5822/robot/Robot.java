@@ -104,6 +104,23 @@ public class Robot extends IterativeRobot {
      */
     public void teleopPeriodic() {
         myRobot.arcadeDrive(stick);
+ 
+           
+   		while(isEnabled()){
+   			boolean buttonPressedA = motorButtonA.get();
+   	        boolean buttonPressedB = motorbuttonB.get();
+   			if (buttonPressedA == true){
+   				intake.arcadeDrive(0.4, 0);}
+   			if (buttonPressedB == true){
+   				intake.setInvertedMotor(RobotDrive.MotorType.kRearLeft, true);
+   				intake.setInvertedMotor(RobotDrive.MotorType.kRearRight, true);
+   				intake.arcadeDrive(0.4, 0);}
+   			}
+   		
+   		}
+   		
+   		
+           
         //TEST DOMINIC
     }
     
