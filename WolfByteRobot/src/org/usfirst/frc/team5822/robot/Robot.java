@@ -38,20 +38,15 @@ public class Robot extends IterativeRobot {
     	motorButtonB = new JoystickButton(stick, 2);
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	intake = new SICPRobotDrive(4, 5);
-    	stick = new Joystick(0);
-    	
-    }
+    	stick = new Joystick(0);  	
+    }//End robotInit
     
     /**
      * This function is run once each time the robot enters autonomous mode
      */
-    public void autonomousInit() 
-    {
-    	
+    public void autonomousInit()  {    	
     	autoLoopCounter = 0;
-    	
-    	
-    }
+    } //End autonomousInit
 
     /**
      * This function is called periodically during autonomous
@@ -74,30 +69,24 @@ public class Robot extends IterativeRobot {
     	autoRobot = new SICPRobotDrive(0, 1, 2, 3); 
     	gyro.reset();
     	
-    	if (autoLoopCounter==0)
-    	{
-    		while(gyro.getAngle()<90)
-    		{
+    	if (autoLoopCounter==0) {
+    		while(gyro.getAngle()<90) {
     			
-    		}
-    	}
+    		}//End while gyro
+    	}//End autoLoopCounter
     	
-    	while(isAutonomous()&&isEnabled())
-    	{
+    	while(isAutonomous()&&isEnabled()) {
     		double angle = gyro.getAngle(); //get current heading
     		autoRobot.arcadeDrive(0.4, angle*Kp);
     		Timer.delay(0.004);
     		autoLoopCounter ++; 
-    	}
+    	}//End While isAutonomous 
     	
     	autoRobot.drive(0.0, 0.0);
     	
-    	while (isAutonomous()&&isEnabled())
-    	{
+    	while (isAutonomous()&&isEnabled()){
     		autoRobot.drive(0.15, 0.0);
-    	}
-    	
-    	
+    	}//End isAutonomous
     }
     
     /**
@@ -122,20 +111,15 @@ public class Robot extends IterativeRobot {
    				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
    				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
    				intake.arcadeDrive(0.4, 0);}
-   			}
-   		
-   		}
-   		
-   		
-           
-        //TEST DOMINIC
-    
+   			}//End if Button Pressed  		
+   		}//End While isEnabled
+ 
     
     /**
      * This function is called periodically during test mode
      */
     public void testPeriodic() {
     	LiveWindow.run();
-    }
+    } //End Test Periodic 
     
 }
