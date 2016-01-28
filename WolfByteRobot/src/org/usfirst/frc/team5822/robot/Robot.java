@@ -27,7 +27,7 @@ public class Robot extends IterativeRobot {
     boolean buttonPressedB;
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
-	
+	SICPRobotDrive intake;
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -37,7 +37,9 @@ public class Robot extends IterativeRobot {
     	motorButtonA = new JoystickButton(stick, 1);
     	motorButtonB = new JoystickButton(stick, 2);
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
+    	intake = new SICPRobotDrive(4, 5);
     	stick = new Joystick(0);
+    	
     }
     
     /**
@@ -113,12 +115,12 @@ public class Robot extends IterativeRobot {
            
    		while(isEnabled()){
    			buttonPressedA = motorButtonA.get();
-   	        buttonPressedB = motorbuttonB.get();
+   	        buttonPressedB = motorButtonB.get();
    			if (buttonPressedA == true){
    				intake.arcadeDrive(0.4, 0);}
    			if (buttonPressedB == true){
-   				intake.setInvertedMotor(RobotDrive.MotorType.kRearLeft, true);
-   				intake.setInvertedMotor(RobotDrive.MotorType.kRearRight, true);
+   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
+   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
    				intake.arcadeDrive(0.4, 0);}
    			}
    		
@@ -127,7 +129,7 @@ public class Robot extends IterativeRobot {
    		
            
         //TEST DOMINIC
-    }
+    
     
     /**
      * This function is called periodically during test mode
