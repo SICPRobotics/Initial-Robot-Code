@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+import edu.wpi.first.wpilibj.Servo;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -28,6 +29,7 @@ public class Robot extends IterativeRobot {
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
 	SICPRobotDrive intake;
+	Servo servo1;
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -39,7 +41,8 @@ public class Robot extends IterativeRobot {
     	motorButtonB = new JoystickButton(stick, 2);
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	intake = new SICPRobotDrive(5, 6);
-    	stick = new Joystick(0);  	
+    	stick = new Joystick(0);  
+    	servo1= new Servo(7);
     }//End robotInit
     
     /**
@@ -153,6 +156,14 @@ public class Robot extends IterativeRobot {
    				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
    				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
    				intake.arcadeDrive(0.7, 0);}
+   			if (stick.getRawButton(3)== true)
+   			{
+   				servo1.setAngle(90);
+   			}
+   			if(stick.getRawButton(3)==false)
+				{
+				servo1.setAngle(0);
+				}
    			}//End if Button Pressed  		
    		}//End While isEnabled
  
