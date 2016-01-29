@@ -123,6 +123,28 @@ public class Robot extends IterativeRobot {
    		while(isEnabled()){
    			//buttonPressedA = motorButtonA.get();
    	       // buttonPressedB = motorButtonB.get();
+        	double currentSpeed = 0;
+
+
+    	
+    		/*
+    		//If right bumper is pressed, add.2
+    		if ()
+    			currentSpeed += .2;
+    		
+    		//If left bumper is pressed, subtract .2
+    		if ()
+    			currentSpeed -= .2;
+    		
+    		
+    		//If you press A, motor is ready to run
+    		if (){
+    			motor.set(currentSpeed);
+    		}*/
+   			
+   			
+   			
+   			
    			if (stick.getRawButton(1) == true){
    			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
    			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
