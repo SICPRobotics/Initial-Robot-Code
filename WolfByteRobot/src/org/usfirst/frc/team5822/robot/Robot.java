@@ -22,7 +22,7 @@ public class Robot extends IterativeRobot {
 	Joystick stick;
 	int autoLoopCounter;
 	double speedCountTest; 
-	Gyro gyro = new AnalogGyro(1);
+	ADXRS453Gyro gyro = new ADXRS453Gyro();
 	double Kp = 0.03; 
 	boolean buttonPressedA;
     boolean buttonPressedB;
@@ -43,12 +43,17 @@ public class Robot extends IterativeRobot {
     	intake = new SICPRobotDrive(5, 6);
     	stick = new Joystick(0);  
     	servo1= new Servo(7);
+    	System.out.println("Initial Angle" + gyro.getAngle());
+    	gyro.reset();
+    	System.out.println("final angle" + gyro.getAngle());
+    	
     }//End robotInit
     
     /**
      * This function is run once each time the robot enters autonomous mode
      */
-    public void autonomousInit()  {    	
+    public void autonomousInit()  
+    {    	
     	autoLoopCounter = 0;
   	
     	System.out.println("We have been through autonomousInit");
@@ -113,7 +118,12 @@ public class Robot extends IterativeRobot {
     /**
      * This function is called once each time the robot enters tele-operated mode
      */
-    public void teleopInit(){
+    public void teleopInit()
+    {
+    	//Attempt to fix gyro not updating
+    	//Result -- It continually increments 
+    	gyro.startThread();
+    	gyro.reset();
     }
 
     /**
@@ -122,32 +132,19 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
 
         myRobot.arcadeDrive(stick);
+        System.out.println("current angle: " + gyro.getAngle());
+        Timer.delay(0.004);
+        
+        
                 
-   		while(isEnabled()){
+   		/*while(isEnabled()){
    			//buttonPressedA = motorButtonA.get();
    	       // buttonPressedB = motorButtonB.get();
         	double currentSpeed = 0;
 
 
     	
-    		/*
-    		//If right bumper is pressed, add.2
-    		if ()
-    			currentSpeed += .2;
-    		
-    		//If left bumper is pressed, subtract .2
-    		if ()
-    			currentSpeed -= .2;
-    		
-    		
-    		//If you press A, motor is ready to run
-    		if (){
-    			motor.set(currentSpeed);
-    		}*/
-   			
-   			
-   			
-   			
+     			
    			if (stick.getRawButton(1) == true){
    			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
    			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
@@ -165,7 +162,7 @@ public class Robot extends IterativeRobot {
 				servo1.setAngle(0);
 				}
    			}//End if Button Pressed  		
-   		}//End While isEnabled
+*/   		}//End While isEnabled
  
     
     /**
