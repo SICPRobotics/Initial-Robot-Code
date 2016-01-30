@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.BitSet;
 import java.util.TimerTask;
 
+import edu.wpi.first.wpilibj.GyroBase;
 import edu.wpi.first.wpilibj.SPI;
 import edu.wpi.first.wpilibj.SPI.Port;
 import edu.wpi.first.wpilibj.Timer;
@@ -16,7 +17,8 @@ import edu.wpi.first.wpilibj.Timer;
 //imported from https://gist.github.com/jcorcoran/6d721cf6570f772b51f8 as a test for gyro//  
 
 
-public class ADXRS453Gyro {
+public class ADXRS453Gyro extends GyroBase
+{
 
 	static final int DATA_SIZE = 4; //4 bytes = 32 bits
 	static final byte PARITY_BIT = (byte) 0x01; //parity check on first bit
@@ -74,7 +76,7 @@ public class ADXRS453Gyro {
 		this.period = (long)3;
 
 		spi = new SPI(Port.kOnboardCS0);
-		spi.setClockRate(4000000); //4 MHz (rRIO max, gyro can go high)
+		spi.setClockRate(40000); //4 MHz (rRIO max, gyro can go high) took off 2 zeros values
 		spi.setClockActiveHigh();
 		spi.setChipSelectActiveLow();
 		spi.setMSBFirst();

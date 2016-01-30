@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Servo;
 
 /**
@@ -19,7 +20,9 @@ import edu.wpi.first.wpilibj.Servo;
  */
 public class Robot extends IterativeRobot {
 	SICPRobotDrive myRobot;
-	Joystick stick;
+	SICPRobotDrive intake;
+	Joystick stickx;
+	Joystick stickj; 
 	int autoLoopCounter;
 	double speedCountTest; 
 	ADXRS453Gyro gyro = new ADXRS453Gyro();
@@ -28,7 +31,7 @@ public class Robot extends IterativeRobot {
     boolean buttonPressedB;
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
-	SICPRobotDrive intake;
+	
 	Servo servo1;
 	
     /**
@@ -37,15 +40,27 @@ public class Robot extends IterativeRobot {
      */
 
     public void robotInit() {
-    	motorButtonA = new JoystickButton(stick, 1);
-    	motorButtonB = new JoystickButton(stick, 2);
+    	/*motorButtonA = new JoystickButton(stick, 1);
+    	motorButtonB = new JoystickButton(stick, 2);*/
+    	
+    	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, true);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+    	
+    	//sets up intake
     	intake = new SICPRobotDrive(5, 6);
-    	stick = new Joystick(0);  
-    	servo1= new Servo(7);
+    	
+    	//sets up joysticks
+    	stickj = new Joystick(0);  
+    	stickx = new Joystick(1); 
+    	
+   /* 	servo1= new Servo(7);
     	System.out.println("Initial Angle" + gyro.getAngle());
     	gyro.reset();
-    	System.out.println("final angle" + gyro.getAngle());
+    	System.out.println("final angle" + gyro.getAngle());*/
     	
     }//End robotInit
     
@@ -55,10 +70,8 @@ public class Robot extends IterativeRobot {
     public void autonomousInit()  
     {    	
     	autoLoopCounter = 0;
-  	
-    	System.out.println("We have been through autonomousInit");
-    	
-    	
+  	   	System.out.println("We have been through autonomousInit");
+      	
     }
 
 
@@ -66,13 +79,15 @@ public class Robot extends IterativeRobot {
      * This function is called periodically during autonomous
      */
     public void autonomousPeriodic() {
+    	/*gyro.startThread(); */
+    	
     	/*if(autoLoopCounter < 100) //Check if we've completed 100 loops (approximately 2 seconds)
 		{
-			myRobot.drive(-0.5, 0.0); 	// drive forwards half speed
+			myRobot.drive(-0.1, 0.0); 	// drive forwards 1/10 speed
 			autoLoopCounter++;
 			} else {
 			myRobot.drive(0.0, 0.0); 	// stop robot
-		}*/
+		}
     	
     	
     	
@@ -81,7 +96,7 @@ public class Robot extends IterativeRobot {
     	//added by Greta Rauch 1-26 
     	//this has yet to be run
     
-    	    /*	gyro.reset();
+    	    	gyro.reset();
     	
     	if (autoLoopCounter==0) {
     		while(gyro.getAngle()<90) {
@@ -91,15 +106,15 @@ public class Robot extends IterativeRobot {
     	
     	while(isAutonomous()&&isEnabled()) {
     		double angle = gyro.getAngle(); //get current heading
-    		autoRobot.arcadeDrive(0.4, angle*Kp);
+    		myRobot.arcadeDrive(0.1, angle*Kp);
     		Timer.delay(0.004);
     		autoLoopCounter ++; 
     	}//End While isAutonomous 
     	
-    	autoRobot.drive(0.0, 0.0);*/
-    	
+    	myRobot.drive(0.0, 0.0);
+    	*/
    	   	
-    	//this code below speeds the robot up and works! 
+    	/*//this code below speeds the robot up and works! 
     	
     	System.out.println("autonomousPeriodic; " + speedCountTest);
     	
@@ -109,7 +124,7 @@ public class Robot extends IterativeRobot {
     	speedCountTest += 0.001; 
     	
     	if (speedCountTest>0.5)
-    		speedCountTest = 0; 
+    		speedCountTest = 0; */
     	
     	
 
@@ -122,8 +137,12 @@ public class Robot extends IterativeRobot {
     {
     	//Attempt to fix gyro not updating
     	//Result -- It continually increments 
+    	
     	gyro.startThread();
     	gyro.reset();
+    	gyro.calibrate();
+    	
+     	
     }
 
     /**
@@ -131,11 +150,16 @@ public class Robot extends IterativeRobot {
      */
     public void teleopPeriodic() {
 
-        myRobot.arcadeDrive(stick);
+    	
+        /*myRobot.arcadeDrive(stickj);*/
+        intake.arcadeDrive(stickx);
+        
+        myRobot.setSafetyEnabled(false);
+        
         System.out.println("current angle: " + gyro.getAngle());
-        Timer.delay(0.004);
+        Timer.delay(0.1);
         
-        
+                 
                 
    		/*while(isEnabled()){
    			//buttonPressedA = motorButtonA.get();
