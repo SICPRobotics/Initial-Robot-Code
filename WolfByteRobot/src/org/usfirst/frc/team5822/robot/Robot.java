@@ -1,6 +1,7 @@
 package org.usfirst.frc.team5822.robot;
 
 import edu.wpi.first.wpilibj.AnalogGyro;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
@@ -31,8 +32,8 @@ public class Robot extends IterativeRobot {
     boolean buttonPressedB;
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
-	
 	Servo servo1;
+	
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -57,7 +58,13 @@ public class Robot extends IterativeRobot {
     	stickj = new Joystick(0);  
     	stickx = new Joystick(1); 
     	
+    	CameraServer camera = CameraServer.getInstance();
+    	camera.setQuality(50);
+    	camera.startAutomaticCapture("cam0"); //Camera name on WebDashboard
+    	
    /* 	servo1= new Servo(7);
+    * `
+    * 
     	System.out.println("Initial Angle" + gyro.getAngle());
     	gyro.reset();
     	System.out.println("final angle" + gyro.getAngle());*/
@@ -158,7 +165,6 @@ public class Robot extends IterativeRobot {
         
         System.out.println("current angle: " + gyro.getAngle());
         Timer.delay(0.1);
-        
                  
                 
    		/*while(isEnabled()){
