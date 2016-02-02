@@ -3,9 +3,12 @@ package org.usfirst.frc.team5822.robot;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.Victor;
+import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
@@ -26,14 +29,19 @@ public class Robot extends IterativeRobot {
 	Joystick stickj; 
 	int autoLoopCounter;
 	double speedCountTest; 
-	ADXRS453Gyro gyro = new ADXRS453Gyro();
 	double Kp = 0.03; 
 	boolean buttonPressedA;
     boolean buttonPressedB;
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
-	
 	Servo servo1;
+	
+	//adding an encoder
+	Encoder eArm;
+	/*VictorSP arm = new VictorSP (6);  
+	VictorSP rotator = new VictorSP (5);*/  
+	
+	
 	 CameraServer server;
 
 
@@ -59,16 +67,17 @@ public class Robot extends IterativeRobot {
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
     	
     	//sets up intake
+    	
     	intake = new SICPRobotDrive(5, 6);
     	
     	//sets up joysticks
     	stickj = new Joystick(0);  
     	stickx = new Joystick(1); 
     	
-   /* 	servo1= new Servo(7);
-    	System.out.println("Initial Angle" + gyro.getAngle());
-    	gyro.reset();
-    	System.out.println("final angle" + gyro.getAngle());*/
+ 	    //encoder code 2.1 Greta Rauch
+    	eArm = new Encoder (0,1,false, Encoder.EncodingType.k4X); 
+    	eArm.setDistancePerPulse(4);
+    	
     	
     }//End robotInit
     
@@ -79,6 +88,7 @@ public class Robot extends IterativeRobot {
     {    	
     	autoLoopCounter = 0;
   	   	System.out.println("We have been through autonomousInit");
+  	   	
       	
     }
 
@@ -133,8 +143,16 @@ public class Robot extends IterativeRobot {
     	
     	if (speedCountTest>0.5)
     		speedCountTest = 0; */
+/*    	
+    	if (eArm.getDistance()<20000)
+    	arm.set(1);
     	
     	
+    	if (eArm.getDistance()>20000)
+    		arm.set(0);
+       	
+    	System.out.println(eArm.getDistance());
+    	*/
 
     }
     
@@ -143,12 +161,7 @@ public class Robot extends IterativeRobot {
      */
     public void teleopInit()
     {
-    	//Attempt to fix gyro not updating
-    	//Result -- It continually increments 
-    	
-    	gyro.startThread();
-    	gyro.reset();
-    	gyro.calibrate();
+   
     	
      	
     }
@@ -164,9 +177,7 @@ public class Robot extends IterativeRobot {
         
         myRobot.setSafetyEnabled(false);
         
-        System.out.println("current angle: " + gyro.getAngle());
-        Timer.delay(0.1);
-        
+             
                  
                 
    		/*while(isEnabled()){
