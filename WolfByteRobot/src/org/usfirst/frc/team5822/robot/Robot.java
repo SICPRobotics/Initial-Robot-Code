@@ -1,6 +1,7 @@
 package org.usfirst.frc.team5822.robot;
 
-import edu.wpi.first.wpilibj.AnalogGyro;
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
@@ -25,7 +26,7 @@ public class Robot extends IterativeRobot {
 	Joystick stickj; 
 	int autoLoopCounter;
 	double speedCountTest; 
-	ADXRS453Gyro gyro = new ADXRS453Gyro();
+	ADXRS450_Gyro gyro = new ADXRS450_Gyro();
 	double Kp = 0.03; 
 	boolean buttonPressedA;
     boolean buttonPressedB;
@@ -51,7 +52,7 @@ public class Robot extends IterativeRobot {
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
     	
     	//sets up intake
-    	intake = new SICPRobotDrive(5, 6);
+    	//intake = new SICPRobotDrive(5, 6);
     	
     	//sets up joysticks
     	stickj = new Joystick(0);  
@@ -61,6 +62,11 @@ public class Robot extends IterativeRobot {
     	System.out.println("Initial Angle" + gyro.getAngle());
     	gyro.reset();
     	System.out.println("final angle" + gyro.getAngle());*/
+    	
+    	CameraServer camera = CameraServer.getInstance();
+        camera.setQuality(50);
+        //the camera name (ex "cam0") can be found through the roborio web interface
+        camera.startAutomaticCapture("cam0");
     	
     }//End robotInit
     
@@ -80,6 +86,42 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousPeriodic() {
     	/*gyro.startThread(); */
+    	
+    	if (autoLoopCounter<180)
+    	{
+    		myRobot.drive(.1,0);
+    		
+    		
+    	}
+    	if(autoLoopCounter>180 && autoLoopCounter<430)
+    	{
+    		if(gyro.getAngle()!= 180 || gyro.getAngle() != -180)
+    		{
+    			myRobot.drive(.2, 1);
+    		}
+    	}
+    	
+    	if (autoLoopCounter >430 && autoLoopCounter <610)
+    	{
+    		myRobot.drive(.1,0);
+    		
+    		
+    	}
+    	autoLoopCounter++;
+    	
+    	//turn right 90 degrees
+    	//also resets to 90 no matter where it is turned
+ 
+    	/*if(gyro.getAngle()<90 && gyro.getAngle() > -90) 
+    	{
+    		myRobot.drive(.2,1);
+    	}
+    	else {
+    		myRobot.drive(0, 0);
+    	}
+    	*\
+    	
+    	
     	
     	/*if(autoLoopCounter < 100) //Check if we've completed 100 loops (approximately 2 seconds)
 		{
@@ -137,10 +179,10 @@ public class Robot extends IterativeRobot {
     {
     	//Attempt to fix gyro not updating
     	//Result -- It continually increments 
-    	
-    	gyro.startThread();
-    	gyro.reset();
+    	System.out.println("This works");
     	gyro.calibrate();
+    	gyro.reset();
+    	//gyro.calibrate();
     	
      	
     }
@@ -152,7 +194,7 @@ public class Robot extends IterativeRobot {
 
     	
         /*myRobot.arcadeDrive(stickj);*/
-        intake.arcadeDrive(stickx);
+       // intake.arcadeDrive(stickx);
         
         myRobot.setSafetyEnabled(false);
         
