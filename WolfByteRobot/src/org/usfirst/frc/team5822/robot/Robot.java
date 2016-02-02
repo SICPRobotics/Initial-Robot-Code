@@ -42,6 +42,10 @@ public class Robot extends IterativeRobot {
 	VictorSP rotator = new VictorSP (5);*/  
 	
 	
+
+	 CameraServer server;
+
+
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -51,6 +55,11 @@ public class Robot extends IterativeRobot {
     	/*motorButtonA = new JoystickButton(stick, 1);
     	motorButtonB = new JoystickButton(stick, 2);*/
     	
+    	server = CameraServer.getInstance();
+        server.setQuality(50);
+        //the camera name (ex "cam0") can be found through the roborio web interface
+        server.startAutomaticCapture("cam0");  
+        
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
@@ -66,19 +75,7 @@ public class Robot extends IterativeRobot {
     	stickj = new Joystick(0);  
     	stickx = new Joystick(1); 
     	
-
-    	CameraServer camera = CameraServer.getInstance();
-    	camera.setQuality(50);
-    	camera.startAutomaticCapture("cam0"); //Camera name on WebDashboard
-    	
-   /* 	servo1= new Servo(7);
-    * `
-    * 
-    	System.out.println("Initial Angle" + gyro.getAngle());
-    	gyro.reset();
-    	System.out.println("final angle" + gyro.getAngle());*/
-
- 	    //encoder code 2.1 Greta Rauch
+   	    //encoder code 2.1 Greta Rauch
     	eArm = new Encoder (0,1,false, Encoder.EncodingType.k4X); 
     	eArm.setDistancePerPulse(4);
     	
