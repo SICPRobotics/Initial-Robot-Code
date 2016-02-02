@@ -1,5 +1,6 @@
 package org.usfirst.frc.team5822.robot;
 
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -27,7 +28,8 @@ public class Robot extends IterativeRobot {
 	SICPRobotDrive intake;
 	Joystick stickx;
 	Joystick stickj; 
-	int autoLoopCounter;
+	int autoSequenceCounter;
+	int gyroCounter; 
 	double speedCountTest; 
 	double Kp = 0.03; 
 	boolean buttonPressedA;
@@ -35,6 +37,8 @@ public class Robot extends IterativeRobot {
 	JoystickButton motorButtonA;		
 	JoystickButton motorButtonB;	
 	Servo servo1;
+	Timer autoTimer = new Timer();
+	ADXRS450_Gyro gyro;
 	
 	//adding an encoder
 	Encoder eArm;
@@ -61,10 +65,10 @@ public class Robot extends IterativeRobot {
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
-    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
+/*    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, true);
-    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);*/
     	
     	//sets up intake
     	
@@ -78,6 +82,10 @@ public class Robot extends IterativeRobot {
     	eArm = new Encoder (0,1,false, Encoder.EncodingType.k4X); 
     	eArm.setDistancePerPulse(4);
     	
+    	gyro = new ADXRS450_Gyro();
+    	gyro.calibrate();
+  	   	Timer.delay(10);
+    	
     	
     }//End robotInit
     
@@ -86,63 +94,60 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousInit()  
     {    	
-    	autoLoopCounter = 0;
+    	autoSequenceCounter = 0;
   	   	System.out.println("We have been through autonomousInit");
-  	   	
-      	
+  	    gyro.reset();
+  	    System.out.println("We have reset gyro"); 
+  	   	   	
     }
 
 
     /**
      * This function is called periodically during autonomous
      */
-    public void autonomousPeriodic() {
-    	/*gyro.startThread(); */
-    	
-    	/*if(autoLoopCounter < 100) //Check if we've completed 100 loops (approximately 2 seconds)
-		{
-			myRobot.drive(-0.1, 0.0); 	// drive forwards 1/10 speed
-			autoLoopCounter++;
-			} else {
-			myRobot.drive(0.0, 0.0); 	// stop robot
-		}
-    	
-    	
-    	
-    	//this is test code for the gyro. if it works, 
-    	//it should make the robot go forward straight in autonomous 
-    	//added by Greta Rauch 1-26 
-    	//this has yet to be run
-    
-    	    	gyro.reset();
-    	
-    	if (autoLoopCounter==0) {
-    		while(gyro.getAngle()<90) {
+    public void autonomousPeriodic() 
+    {
+    	{
+    		if (autoSequenceCounter == 0)
+    		{
+    			if(gyro.getAngle() > -90)
+    				myRobot.drive(0.125, -1);
     			
-    		}//End while gyro
-    	}//End autoLoopCounter
+    			if (gyro.getAngle()< -90)
+    			{
+    				myRobot.drive(0, 0);
+    				autoSequenceCounter++; 
+    			}
+    		}
+    		
+    		if (autoSequenceCounter==1)
+    		{
+    			autoTimer.start();
+    			autoSequenceCounter++; 
+    		}
+    			
+    		
+    		if (autoSequenceCounter==2)
+    		{
+    			if (autoTimer.get()<3)
+    				myRobot.drive(0.125,0);
+    			
+    			else if (autoTimer.get()>=3)
+    			{
+    				autoTimer.stop();
+        			myRobot.drive(0, 0);
+        			autoSequenceCounter++; 
+    			}
+    		}
+    		    		   		
+    		if (autoSequenceCounter==3)
+    			myRobot.drive(0, 0);
+    		
+    		
+    		
+    		
+    	}
     	
-    	while(isAutonomous()&&isEnabled()) {
-    		double angle = gyro.getAngle(); //get current heading
-    		myRobot.arcadeDrive(0.1, angle*Kp);
-    		Timer.delay(0.004);
-    		autoLoopCounter ++; 
-    	}//End While isAutonomous 
-    	
-    	myRobot.drive(0.0, 0.0);
-    	*/
-   	   	
-    	/*//this code below speeds the robot up and works! 
-    	
-    	System.out.println("autonomousPeriodic; " + speedCountTest);
-    	
-    	myRobot.drive(speedCountTest, 0.0);
-    	
-    	Timer.delay(0.004);
-    	speedCountTest += 0.001; 
-    	
-    	if (speedCountTest>0.5)
-    		speedCountTest = 0; */
 /*    	
     	if (eArm.getDistance()<20000)
     	arm.set(1);
