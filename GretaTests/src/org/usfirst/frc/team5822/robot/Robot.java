@@ -84,9 +84,7 @@ public class Robot extends IterativeRobot {
     	
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
-  	   	Timer.delay(10);
-    	
-    	
+   	
     }//End robotInit
     
     /**
@@ -108,12 +106,14 @@ public class Robot extends IterativeRobot {
     public void autonomousPeriodic() 
     {
     	{
+    		System.out.println(gyro.getAngle());
+    		
     		if (autoSequenceCounter == 0)
     		{
     			if(gyro.getAngle() > -90)
     				myRobot.drive(0.125, -1);
     			
-    			if (gyro.getAngle()< -90)
+    			if (gyro.getAngle()<= -90)
     			{
     				myRobot.drive(0, 0);
     				autoSequenceCounter++; 
@@ -122,12 +122,52 @@ public class Robot extends IterativeRobot {
     		
     		if (autoSequenceCounter==1)
     		{
+    			if(gyro.getAngle() < 0)
+    				myRobot.drive(0.125, 1);
+    			
+    			if (gyro.getAngle()>= 0)
+    			{
+    				myRobot.drive(0, 0);
+    				autoSequenceCounter++; 
+    			}
+    			/*autoTimer.start();
+    			autoSequenceCounter++; */
+    			
+    	  				
+    		}
+    		
+    		if (autoSequenceCounter==2)
+    		{
+    			/*if (autoTimer.get()<10)
+    			{
+    				if (gyro.getAngle()<-89.8)
+    					myRobot.drive(0.125, 1);
+    				
+    				else if (gyro.getAngle()>-90.2)
+    					myRobot.drive(0.125, -1);
+    			
+    				else
+    					myRobot.drive(0, 0);
+    			}
+    			
+    			else
+    			{
+    				autoTimer.reset();
+    				myRobot.drive(0, 0);
+    				autoSequenceCounter ++; 
+    				System.out.println("Going Straight");
+    			}*/
+    				
+    		}
+    		
+    		if (autoSequenceCounter==3)
+    		{
     			autoTimer.start();
     			autoSequenceCounter++; 
     		}
     			
     		
-    		if (autoSequenceCounter==2)
+    		if (autoSequenceCounter==4)
     		{
     			if (autoTimer.get()<3)
     				myRobot.drive(0.125,0);
@@ -140,7 +180,7 @@ public class Robot extends IterativeRobot {
     			}
     		}
     		    		   		
-    		if (autoSequenceCounter==3)
+    		if (autoSequenceCounter==5)
     			myRobot.drive(0, 0);
     		
     		
@@ -177,13 +217,12 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
 
     	
-        /*myRobot.arcadeDrive(stickj);*/
-        intake.arcadeDrive(stickx);
+       intake.arcadeDrive(stickx);
+       /* myRobot.arcadeDrive(stickj);*/
         
         myRobot.setSafetyEnabled(false);
         
-             
-                 
+                     
                 
    		/*while(isEnabled()){
    			//buttonPressedA = motorButtonA.get();
