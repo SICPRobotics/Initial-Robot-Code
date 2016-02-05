@@ -96,7 +96,7 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double Kp = 0.01;
+  	    double Kp = .00000000004;
   	   	   	
     }
 
@@ -189,7 +189,7 @@ public class Robot extends IterativeRobot {
     		
    	      }
 
-       		    myRobot.drive(0.1, gyro.getAngle()*Kp); // drive towards heading 0
+       		    myRobot.drive(0.2, gyro.getAngle()*Kp); // drive towards heading 0
     		    Timer.delay(0.004);
     
     		}
