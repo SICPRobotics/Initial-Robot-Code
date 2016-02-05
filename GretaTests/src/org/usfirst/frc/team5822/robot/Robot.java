@@ -65,10 +65,10 @@ public class Robot extends IterativeRobot {
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
-/*    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, true);
-    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);*/
+    	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
     	
     	//sets up intake
     	
@@ -96,6 +96,7 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
+  	    double Kp = 0.01;
   	   	   	
     }
 
@@ -108,7 +109,7 @@ public class Robot extends IterativeRobot {
     	{
     		System.out.println(gyro.getAngle());
     		
-    		if (autoSequenceCounter == 0)
+    		/*if (autoSequenceCounter == 0)
     		{
     			if(gyro.getAngle() > -90)
     				myRobot.drive(0.125, -1);
@@ -130,15 +131,15 @@ public class Robot extends IterativeRobot {
     				myRobot.drive(0, 0);
     				autoSequenceCounter++; 
     			}
-    			/*autoTimer.start();
-    			autoSequenceCounter++; */
+    			autoTimer.start();
+    			autoSequenceCounter++; 
     			
     	  				
     		}
     		
     		if (autoSequenceCounter==2)
     		{
-    			/*if (autoTimer.get()<10)
+    			if (autoTimer.get()<10)
     			{
     				if (gyro.getAngle()<-89.8)
     					myRobot.drive(0.125, 1);
@@ -156,7 +157,7 @@ public class Robot extends IterativeRobot {
     				myRobot.drive(0, 0);
     				autoSequenceCounter ++; 
     				System.out.println("Going Straight");
-    			}*/
+    			}
     				
     		}
     		
@@ -183,11 +184,17 @@ public class Robot extends IterativeRobot {
     		if (autoSequenceCounter==5)
     			myRobot.drive(0, 0);
     		
+    		*/
     		
     		
-    		
-    	}
-    	
+   	      }
+
+       		    myRobot.drive(0.1, gyro.getAngle()*Kp); // drive towards heading 0
+    		    Timer.delay(0.004);
+    
+    		}
+  		
+    
 /*    	
     	if (eArm.getDistance()<20000)
     	arm.set(1);
@@ -199,7 +206,7 @@ public class Robot extends IterativeRobot {
     	System.out.println(eArm.getDistance());
     	*/
 
-    }
+    
     
     /**
      * This function is called once each time the robot enters tele-operated mode
@@ -218,7 +225,7 @@ public class Robot extends IterativeRobot {
 
     	
        intake.arcadeDrive(stickx);
-       /* myRobot.arcadeDrive(stickj);*/
+        myRobot.arcadeDrive(stickj);
         
         myRobot.setSafetyEnabled(false);
         
