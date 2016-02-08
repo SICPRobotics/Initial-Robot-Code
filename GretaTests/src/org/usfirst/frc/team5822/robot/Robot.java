@@ -74,13 +74,11 @@ public class Robot extends IterativeRobot {
 		    /*	myRobot.drive(output, 0); //drive robot from PID output
 		   
 */		    	
-		    	if (output < -0.2)
-		    		output = -0.2; 
-		    		
-		    	if (output > 0.2)
-		    		output = 0.2;
+		    	double scaled = output*0.2;
 		    	
-		    	myRobot.setLeftRightMotorOutputs(tPower-output, tPower+output);
+		    	myRobot.setLeftRightMotorOutputs(tPower-scaled, tPower+scaled);
+		    	System.out.println("Speed Output: " +output); 
+		    
 		    }
 	    }
 	    
@@ -117,7 +115,9 @@ public class Robot extends IterativeRobot {
 	    	   */
 	    	  public double pidGet()
 	    	  {
+	    		  System.out.println("PIDSource Angle: " + gyro.getAngle());
 	    		  return gyro.getAngle();
+	    		  
 	    	  }
 	    	}
 
@@ -175,11 +175,16 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double pGain = 0.1;
+  	    double pGain = 0.001;
   	    double iGain = 0; 
   	    double dGain = 0; 
-  	    tPower = 0.2; 
-  		gPid = new PIDController(pGain, iGain, dGain, new GyroPIDSource(), new GyroPIDOutput());
+  	    tPower = 0;
+  	    PIDSource gType = new GyroPIDSource ();
+  	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
+  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput());
+    	gPid.setInputRange(-360, 360);  
+    	gPid.setSetpoint(0);
+  		gPid.enable();
   		
     }
   	   	   	
@@ -191,14 +196,8 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousPeriodic() 
     {
-    	gPid.setInputRange(-360, 360);  
-    	gPid.setSetpoint(0);
-    	System.out.println(gyro.getAngle());
-    	if (isAutonomous())
-    		gPid.enable();
-    	else 
-    		gPid.disable();
-    	
+  //  	System.out.println("Auto Periodic Angle: " + gyro.getAngle());
+    	    	   	
     }		
     	
     
@@ -209,7 +208,8 @@ public class Robot extends IterativeRobot {
     public void teleopInit()
     {
    
-    	teleopFunction = 0; 
+    	teleopFunction = 0;
+    	gPid.disable();
      	
     }
 
