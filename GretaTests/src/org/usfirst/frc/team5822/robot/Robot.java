@@ -1,5 +1,6 @@
 package org.usfirst.frc.team5822.robot;
 
+
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.CameraServer;
@@ -7,6 +8,10 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PIDController;
+import edu.wpi.first.wpilibj.PIDOutput;
+import edu.wpi.first.wpilibj.PIDSource;
+import edu.wpi.first.wpilibj.PIDSourceType;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Victor;
 import edu.wpi.first.wpilibj.VictorSP;
@@ -39,22 +44,80 @@ public class Robot extends IterativeRobot {
 	Servo servo1;
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
+	double tPower; 
 	
 	//adding an encoder
 	Encoder eArm;
 	/*VictorSP arm = new VictorSP (6);  
 	VictorSP rotator = new VictorSP (5);*/  
 	
+	PIDController gPid; 
+	
 	
 	 CameraServer server;
 
+	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
+	    public class GyroPIDOutput implements PIDOutput 
+	    {
+		    public void pidWrite(double output) 
+		    {
+		    /*	myRobot.drive(output, 0); //drive robot from PID output
+		   
+*/		    	
+		    	if (output < -0.2)
+		    		output = -0.2; 
+		    		
+		    	if (output > 0.2)
+		    		output = 0.2;
+		    	
+		    	myRobot.setLeftRightMotorOutputs(tPower-output, tPower+output);
+		    }
+	    }
+	    
+	    public class GyroPIDSource implements PIDSource
+	    {
+	    	  /**
+	    	   * Set which parameter of the device you are using as a process control
+	    	   * variable.
+	    	   *
+	    	   * @param pidSource
+	    	   *            An enum to select the parameter.
+	    	   */
+	    	
+	    	private PIDSourceType myType; 
+	    	
+	    	  public void setPIDSourceType(PIDSourceType pidSource)
+	    	  {
+	       		  myType = pidSource; 
+	    	  }
+	    	  /**
+	    	   * Get which parameter of the device you are using as a process control
+	    	   * variable.
+	    	   *
+	    	   * @return the currently selected PID source parameter
+	    	   */
+	    	  public PIDSourceType getPIDSourceType()
+	    	  {
+	    		  return myType; 
+	    	  }
+	    	  /**
+	    	   * Get the result to use in PIDController
+	    	   *$
+	    	   * @return the result to use in PIDController
+	    	   */
+	    	  public double pidGet()
+	    	  {
+	    		  return gyro.getAngle();
+	    	  }
+	    	}
 
+	    
+	    
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
      */
-
-    public void robotInit() {
+	 public void robotInit() {
     	/*motorButtonA = new JoystickButton(stick, 1);
     	motorButtonB = new JoystickButton(stick, 2);*/
     	
@@ -84,7 +147,8 @@ public class Robot extends IterativeRobot {
     	
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
-   	
+    
+    	
     }//End robotInit
     
     /**
@@ -96,9 +160,15 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double Kp = .00000000004;
-  	   	   	
+  	    double pGain = 0.1;
+  	    double iGain = 0; 
+  	    double dGain = 0; 
+  	    tPower = 0.2; 
+  		gPid = new PIDController(pGain, iGain, dGain, new GyroPIDSource(), new GyroPIDOutput());
+  		
     }
+  	   	   	
+    
 
 
     /**
@@ -106,106 +176,16 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousPeriodic() 
     {
-    	{
-    		System.out.println(gyro.getAngle());
-    		
-    		/*if (autoSequenceCounter == 0)
-    		{
-    			if(gyro.getAngle() > -90)
-    				myRobot.drive(0.125, -1);
-    			
-    			if (gyro.getAngle()<= -90)
-    			{
-    				myRobot.drive(0, 0);
-    				autoSequenceCounter++; 
-    			}
-    		}
-    		
-    		if (autoSequenceCounter==1)
-    		{
-    			if(gyro.getAngle() < 0)
-    				myRobot.drive(0.125, 1);
-    			
-    			if (gyro.getAngle()>= 0)
-    			{
-    				myRobot.drive(0, 0);
-    				autoSequenceCounter++; 
-    			}
-    			autoTimer.start();
-    			autoSequenceCounter++; 
-    			
-    	  				
-    		}
-    		
-    		if (autoSequenceCounter==2)
-    		{
-    			if (autoTimer.get()<10)
-    			{
-    				if (gyro.getAngle()<-89.8)
-    					myRobot.drive(0.125, 1);
-    				
-    				else if (gyro.getAngle()>-90.2)
-    					myRobot.drive(0.125, -1);
-    			
-    				else
-    					myRobot.drive(0, 0);
-    			}
-    			
-    			else
-    			{
-    				autoTimer.reset();
-    				myRobot.drive(0, 0);
-    				autoSequenceCounter ++; 
-    				System.out.println("Going Straight");
-    			}
-    				
-    		}
-    		
-    		if (autoSequenceCounter==3)
-    		{
-    			autoTimer.start();
-    			autoSequenceCounter++; 
-    		}
-    			
-    		
-    		if (autoSequenceCounter==4)
-    		{
-    			if (autoTimer.get()<3)
-    				myRobot.drive(0.125,0);
-    			
-    			else if (autoTimer.get()>=3)
-    			{
-    				autoTimer.stop();
-        			myRobot.drive(0, 0);
-        			autoSequenceCounter++; 
-    			}
-    		}
-    		    		   		
-    		if (autoSequenceCounter==5)
-    			myRobot.drive(0, 0);
-    		
-    		*/
-    		
-    		
-   	      }
-
-       		    myRobot.drive(0.2, gyro.getAngle()*Kp); // drive towards heading 0
-    		    Timer.delay(0.004);
-    
-    		}
-  		
-    
-/*    	
-    	if (eArm.getDistance()<20000)
-    	arm.set(1);
+    	gPid.setInputRange(-360, 360);  
+    	gPid.setSetpoint(0);
+    	System.out.println(gyro.getAngle());
+    	if (isAutonomous())
+    		gPid.enable();
+    	else 
+    		gPid.disable();
     	
+    }		
     	
-    	if (eArm.getDistance()>20000)
-    		arm.set(0);
-       	
-    	System.out.println(eArm.getDistance());
-    	*/
-
     
     
     /**
