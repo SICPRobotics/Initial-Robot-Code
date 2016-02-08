@@ -44,15 +44,25 @@ public class Robot extends IterativeRobot {
 	Servo servo1;
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
+
 	double tPower; 
-	
+	int teleopFunction; 
+	VictorSP armR = new VictorSP (7); //this is the arm that rotates the ball intake
+	Timer teleTimer = new Timer();
+
 	//adding an encoder
 	Encoder eArm;
 	/*VictorSP arm = new VictorSP (6);  
 	VictorSP rotator = new VictorSP (5);*/  
 	
+
 	PIDController gPid; 
 	
+
+	int intakeHeight; 
+	int passHeight; 
+	int shootHeight; 
+
 	
 	 CameraServer server;
 
@@ -147,8 +157,13 @@ public class Robot extends IterativeRobot {
     	
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
-    
+
     	
+    	//sets up the automatic heights for button functions 
+    	intakeHeight = 0; 
+    	shootHeight = 0; 
+    	passHeight = 0; 
+
     }//End robotInit
     
     /**
@@ -194,7 +209,7 @@ public class Robot extends IterativeRobot {
     public void teleopInit()
     {
    
-    	
+    	teleopFunction = 0; 
      	
     }
 
@@ -205,10 +220,84 @@ public class Robot extends IterativeRobot {
 
     	
        intake.arcadeDrive(stickx);
-        myRobot.arcadeDrive(stickj);
+       myRobot.arcadeDrive(stickj);
         
         myRobot.setSafetyEnabled(false);
         
+        //button 1 is for the calibration 
+        if (stickx.getRawButton(1)==true)
+        	teleopFunction = 1; 
+         
+        //button 2 is for getting the ball to the right place for intake 
+        if (stickx.getRawButton(2)==true)
+        	teleopFunction = 3; 
+        
+        //button 3 is for getting the ball to the right place for crossing low bar
+        if (stickx.getRawButton(3)==true)
+        	teleopFunction = 4; 
+        
+        //button 4 is for passing the ball 
+        if (stickx.getRawButton(4)==true)
+        	teleopFunction = 5; 
+        
+        //button 5 is for shooting 
+        if (stickx.getRawButton(5)==true)
+        	teleopFunction = 6; 
+        
+        switch (teleopFunction)
+        {
+        case 1: teleopFunction = 0; 
+        		break; 
+        		//nothing happens, the arm has not been signaled 
+        case 2: teleopFunction = 1; //this is for calibration
+        {
+        	if (eArm.get()>0)
+        	{
+        		armR.set(1); //rotates the arm up
+        	}
+        	
+        	if(eArm.get()<0)
+        	{
+        		armR.set(1);
+        		teleTimer.start();
+        		teleopFunction = 2; //starts a timer
+        	}
+        		
+        }
+        case 3: teleopFunction = 2; //has the arm finish calibrating for time 
+        {
+        	if (teleTimer.get()<0.5)
+        		armR.set(1);
+        	if (teleTimer.get()>0.5)
+        	{
+        		armR.set(0);
+        		teleTimer.reset(); 
+        		teleopFunction = 0; //arm finishes calibrating so teleopFunction reset to default
+        	}
+        }
+        
+        case 4: teleopFunction = 3; //this gets the arm to the right place for intake 
+        {
+        	if (eArm.get()<intakeHeight-0.1) //make sure 0.1 is good number, set iH
+        		armR.set(1);
+        	
+        	else if (eArm.get()>intakeHeight+0.1) //make sure 0.1 is good number
+        		armR.set(-1); 
+        	
+        	else 
+        	{
+        		armR.set(0);
+        		teleopFunction = 0; //arm is at iH so teleopFunction back to default
+        	}
+        }
+        
+        case 5: 
+        
+        }
+        if (stickx.getRawButton(1)==true)
+        {
+        	
+        }
                      
                 
    		/*while(isEnabled()){
