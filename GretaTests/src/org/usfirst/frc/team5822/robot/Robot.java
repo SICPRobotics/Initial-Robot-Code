@@ -49,6 +49,8 @@ public class Robot extends IterativeRobot {
 	int teleopFunction; 
 	VictorSP armR = new VictorSP (7); //this is the arm that rotates the ball intake
 	Timer teleTimer = new Timer();
+	VictorSP ballSpin1 = new VictorSP (8);
+	VictorSP ballSpin2 = new VictorSP (9);
 
 	//adding an encoder
 	Encoder eArm;
@@ -74,7 +76,7 @@ public class Robot extends IterativeRobot {
 		    /*	myRobot.drive(output, 0); //drive robot from PID output
 		   
 */		    	
-		    	double scaled = output*0.2;
+		    	double scaled = output*0.15;
 		    	
 		    	myRobot.setLeftRightMotorOutputs(tPower-scaled, tPower+scaled);
 		    	System.out.println("Speed Output: " +output); 
@@ -131,10 +133,10 @@ public class Robot extends IterativeRobot {
     	/*motorButtonA = new JoystickButton(stick, 1);
     	motorButtonB = new JoystickButton(stick, 2);*/
     	
-    	server = CameraServer.getInstance();
+/*    	server = CameraServer.getInstance();
         server.setQuality(50);
         //the camera name (ex "cam0") can be found through the roborio web interface
-        server.startAutomaticCapture("cam0");  
+        server.startAutomaticCapture("cam0");  */
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
@@ -175,13 +177,13 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double pGain = 0.001;
+  	    double pGain = 0.01;
   	    double iGain = 0; 
   	    double dGain = 0; 
   	    tPower = 0;
   	    PIDSource gType = new GyroPIDSource ();
-  	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
-  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput());
+  	    gType.setPIDSourceType(PIDSourceType.kRate);
+  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.005);
     	gPid.setInputRange(-360, 360);  
     	gPid.setSetpoint(0);
   		gPid.enable();
@@ -209,7 +211,7 @@ public class Robot extends IterativeRobot {
     {
    
     	teleopFunction = 0;
-    	gPid.disable();
+    	/*gPid.disable();*/
      	
     }
 
@@ -224,7 +226,10 @@ public class Robot extends IterativeRobot {
         
         myRobot.setSafetyEnabled(false);
         
-        //button 1 is for the calibration 
+      
+    }
+        
+        /*//button 1 is for the calibration 
         if (stickx.getRawButton(1)==true)
         	teleopFunction = 1; 
          
@@ -298,35 +303,9 @@ public class Robot extends IterativeRobot {
         {
         	
         }
-                     
+                     */
                 
-   		/*while(isEnabled()){
-   			//buttonPressedA = motorButtonA.get();
-   	       // buttonPressedB = motorButtonB.get();
-        	double currentSpeed = 0;
-
-
-    	
-     			
-   			if (stick.getRawButton(1) == true){
-   			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
-   			intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
-   				intake.arcadeDrive(0.7, 0);}
-   			if (stick.getRawButton(2) == true){
-   				//intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
-   				intake.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
-   				intake.arcadeDrive(0.7, 0);}
-   			if (stick.getRawButton(3)== true)
-   			{
-   				servo1.setAngle(90);
-   			}
-   			if(stick.getRawButton(3)==false)
-				{
-				servo1.setAngle(0);
-				}
-   			}//End if Button Pressed  		
-*/   		}//End While isEnabled
- 
+   		
     
     /**
      * This function is called periodically during test mode
