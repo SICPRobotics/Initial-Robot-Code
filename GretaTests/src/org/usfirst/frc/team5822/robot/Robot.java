@@ -132,13 +132,11 @@ public class Robot extends IterativeRobot {
      * used for any initialization code.
      */
 	 public void robotInit() {
-    	/*motorButtonA = new JoystickButton(stick, 1);
-    	motorButtonB = new JoystickButton(stick, 2);*/
     	
-/*    	server = CameraServer.getInstance();
+    	server = CameraServer.getInstance();
         server.setQuality(50);
         //the camera name (ex "cam0") can be found through the roborio web interface
-        server.startAutomaticCapture("cam0");  */
+        server.startAutomaticCapture("cam0");  
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
@@ -217,8 +215,6 @@ public class Robot extends IterativeRobot {
     	teleopFunction = 0;
     	/*gPid.disable();*/
     	
-    	ultrasonic.initAccumulator();
-     	
     }
 
     /**
@@ -241,16 +237,25 @@ public class Robot extends IterativeRobot {
     
     
     TeleopFunctions chosen; 
+    double voltage; 
+    double value; 
    
   
     public void teleopPeriodic() 
     {
-    	/*System.out.print("UltraSonic Reading: " + ultrasonic.getValue());
-    	Timer.delay(0.1);*/
+    	voltage = ultrasonic.getVoltage();
+    	value = ultrasonic.getValue(); 
+    	
+    	System.out.println(voltage + "\t" + value + "\t" + voltage/9.766 + "\t" + value/9.766 + "\t" + value/voltage);
+    	
+    	Timer.delay(1);
     	
     	myRobot.setSafetyEnabled(false);
-    	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
     	
+    	//angela was here, and she did something :)
+    	
+    	/*myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
+   	*/
 /*    	
       	
       	System.out.println("Ultrasonic: " + (ultrasonic.getVoltage()/.009766));
