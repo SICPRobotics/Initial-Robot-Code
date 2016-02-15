@@ -52,6 +52,7 @@ public class Robot extends IterativeRobot {
     public static final int GRABBALL = 2; 
     public static final int CALIBRATE = 3;
     public static final int SHOOT = 4; 
+    public int timesLoop = 0; 
 
 
 	double tPower; 
@@ -73,6 +74,8 @@ public class Robot extends IterativeRobot {
 	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
 	    public class GyroPIDOutput implements PIDOutput 
 	    {
+	    	int counter = 0; 
+	    	
 		    public void pidWrite(double output) 
 		    {
 		    /*	myRobot.drive(output, 0); //drive robot from PID output
@@ -80,8 +83,14 @@ public class Robot extends IterativeRobot {
 */		    	
 		    	double scaled = output*0.15;
 		    	
-		    	myRobot.setLeftRightMotorOutputs(tPower-scaled, tPower+scaled);
-		    	System.out.println("Speed Output: " +output); 
+		    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
+		    	timesLoop++; 
+		    	
+		    	if (counter++%50 == 0 &&isAutonomous()&&isEnabled())
+		    	{
+		    		System.out.println("Speed Output: " +output); 
+		    		System.out.println("Current Angle: " +gyro.getAngle());
+		    	}
 		    
 		    }
 	    }
@@ -119,7 +128,6 @@ public class Robot extends IterativeRobot {
 	    	   */
 	    	  public double pidGet()
 	    	  {
-	    		  System.out.println("PIDSource Angle: " + gyro.getAngle());
 	    		  return gyro.getAngle();
 	    		  
 	    	  }
@@ -179,17 +187,19 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double pGain = 0.01;
-  	    double iGain = 0; 
-  	    double dGain = 0; 
-  	    tPower = 0;
+  	    double pGain = 0.9;
+  	    double iGain = 0.00521135; 
+  	    double dGain = 38.834084496; 
+  	    tPower = 0.2;
   	    PIDSource gType = new GyroPIDSource ();
-  	    gType.setPIDSourceType(PIDSourceType.kRate);
-  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.005);
+  	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
+  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
     	gPid.setInputRange(-360, 360);  
     	gPid.setSetpoint(0);
   		gPid.enable();
-  		
+  		teleTimer.reset();
+  		teleTimer.start();
+  		timesLoop=0; 
     }
   	   	   	
     
@@ -200,7 +210,14 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousPeriodic() 
     {
-  //  	System.out.println("Auto Periodic Angle: " + gyro.getAngle());
+    	if (teleTimer.get()>=2)
+    	{
+    		gPid.disable();
+    		teleTimer.reset();
+    		System.out.println("Times through: " + timesLoop);
+    	}
+    		
+    	
     	    	   	
     }		
     	
@@ -213,7 +230,7 @@ public class Robot extends IterativeRobot {
     {
    
     	teleopFunction = 0;
-    	/*gPid.disable();*/
+  /*  	gPid.disable();*/
     	
     }
 
@@ -243,30 +260,20 @@ public class Robot extends IterativeRobot {
   
     public void teleopPeriodic() 
     {
-    	voltage = ultrasonic.getVoltage();
-    	value = ultrasonic.getValue(); 
-    	
-    	System.out.println(voltage + "\t" + value + "\t" + voltage/9.766 + "\t" + value/9.766 + "\t" + value/voltage);
-    	
-    	Timer.delay(1);
-    	
+    	/*voltage = ultrasonic.getVoltage();
+    	System.out.println((voltage*43.796)-2.6048);
+    	    	
+    	Timer.delay(1);*/
+	
     	myRobot.setSafetyEnabled(false);
-    	
-    	//angela was here, and she did something :)
-    	
-    	/*myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
-   	*/
-/*    	
-      	
-      	System.out.println("Ultrasonic: " + (ultrasonic.getVoltage()/.009766));
-      	Timer.delay(0.1);
-      	
-    
+  	
+        
     	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
     	armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
      
     	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
-        
+    	
+/*    	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
        
