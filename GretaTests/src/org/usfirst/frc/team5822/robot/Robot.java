@@ -4,6 +4,7 @@ package org.usfirst.frc.team5822.robot;
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.AnalogInput;
+import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
@@ -53,7 +54,7 @@ public class Robot extends IterativeRobot {
     public static final int CALIBRATE = 3;
     public static final int SHOOT = 4; 
     public int timesLoop = 0; 
-
+    CANTalon testMotor = new CANTalon(0); 
 
 	double tPower; 
 	int teleopFunction; 
@@ -78,20 +79,14 @@ public class Robot extends IterativeRobot {
 	    	
 		    public void pidWrite(double output) 
 		    {
-		    /*	myRobot.drive(output, 0); //drive robot from PID output
-		   
-*/		    	
+		    		   
+   	
 		    	double scaled = output*0.15;
 		    	
 		    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
 		    	timesLoop++; 
 		    	
-		    	if (counter++%50 == 0 &&isAutonomous()&&isEnabled())
-		    	{
-		    		System.out.println("Speed Output: " +output); 
-		    		System.out.println("Current Angle: " +gyro.getAngle());
-		    	}
-		    
+		    		    
 		    }
 	    }
 	    
@@ -210,15 +205,8 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousPeriodic() 
     {
-    	if (teleTimer.get()>=2)
-    	{
-    		gPid.disable();
-    		teleTimer.reset();
-    		System.out.println("Times through: " + timesLoop);
-    	}
-    		
-    	
-    	    	   	
+        		
+    	    	    	   	
     }		
     	
     
@@ -230,7 +218,7 @@ public class Robot extends IterativeRobot {
     {
    
     	teleopFunction = 0;
-  /*  	gPid.disable();*/
+    	/*gPid.disable();*/
     	
     }
 
@@ -272,6 +260,8 @@ public class Robot extends IterativeRobot {
     	armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
      
     	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
+    	
+    	testMotor.set(1);
     	
 /*    	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
