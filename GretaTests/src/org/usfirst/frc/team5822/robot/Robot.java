@@ -1,6 +1,11 @@
 package org.usfirst.frc.team5822.robot;
 
 
+import java.lang.reflect.Array;
+
+import com.ni.vision.NIVision;
+import com.ni.vision.NIVision.Image;
+
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.AnalogInput;
@@ -23,6 +28,7 @@ import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.vision.USBCamera;
 import edu.wpi.first.wpilibj.Servo;
 
 /**
@@ -50,6 +56,10 @@ public class Robot extends IterativeRobot {
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic; 
     public int timesLoop = 0; 
+    int cameraID = 0; 
+	public static USBCamera cameraFront;
+	public static USBCamera cameraBack;
+	public static USBCamera activeCamera; 
     
 	double tPower; 
 	int teleopFunction; 
@@ -63,6 +73,7 @@ public class Robot extends IterativeRobot {
 	private final int INTAKEHEIGHT = 0; 
 	private final int LOWBARHEIGHT = 0; 
 	private final int SHOOTHEIGHT = 0; 
+	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 
 	
 	 CameraServer server;
@@ -133,8 +144,18 @@ public class Robot extends IterativeRobot {
     	
     	server = CameraServer.getInstance();
         server.setQuality(50);
-        //the camera name (ex "cam0") can be found through the roborio web interface
-        server.startAutomaticCapture("cam0");  
+		cameraFront = new USBCamera("cam0");
+		cameraBack = new USBCamera("cam1");
+		cameraFront.openCamera();
+		cameraBack.openCamera();
+		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
+
+		
+		//		camServer.setQuality(100);
+		
+		activeCamera = cameraFront; 
+       //the camera name (ex "cam0") can be found through the roborio web interface
+//        server.startAutomaticCapture("cam"+cameraID);  
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
@@ -248,6 +269,21 @@ public class Robot extends IterativeRobot {
     	    	
     	Timer.delay(1);*/
     	
+/*    	System.out.println("Curent Amps: " + armR.getOutputCurrent());
+    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
+    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
+    	System.out.println("BusV: " + armR.getBusVoltage()); 
+    	System.out.println(""); 
+    	System.out.println("AnalogPos: " + armR.getAnalogInPosition()); 
+    	System.out.println("AnalogVelocity: " + armR.getAnalogInVelocity());
+    	System.out.println(""); 
+    	System.out.println("SelectedSensorPos: " + armR.getPosition());
+    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
+    	System.out.println(""); 
+    	System.out.println("ClosedLoopError: " + armR.getError());*/
+    	
+    	
+    /*	
     	if (count<1000)
     		armR.setEncPosition(100);
     	
@@ -262,20 +298,51 @@ public class Robot extends IterativeRobot {
     	if (count%50==0)
     		System.out.println(armR.getEncPosition()); 
     	
-    	count++; 
+    	count++; */
     	
-    	/*TeleopFunctions chosen; 
+    	TeleopFunctions chosen; 
 	               	     
     	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
-*/    	
     	
-       /* //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
+    	if(stickx.getRawButton(5))
+    	{
+    		String camR; 
+    		
+    		if (cameraID==1)
+    		{
+    			cameraID=0;
+				cameraBack.stopCapture();
+				cameraFront.startCapture();
+    			activeCamera = cameraFront; 
+    		}
+    		else
+    		{
+				cameraFront.stopCapture();
+				cameraBack.startCapture();
+				activeCamera = cameraBack; 
+    			cameraID=1; 
+    		}
+    		
+    		camR = "cam" + cameraID;
+    		System.out.println("Enabling Camera: " + camR); 
+    		 
+    		
+    		while(stickx.getRawButton(5));
+    	}
+    	
+		activeCamera.getImage(img);
+		
+		server.setImage(img); // puts image on the dashboard
+   	
+   
+    	
+        //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
       	chosen = TeleopFunctions.NONE;     	
     	
         //Y is for the calibration 
         if (stickx.getRawButton(3)==true)
-        	chosen = TeleopFunctions.RESET; 
+        	chosen = TeleopFunctions.SHOOT; 
         
 
         //A is for getting the ball to the right place for crossing low bar
@@ -285,7 +352,7 @@ public class Robot extends IterativeRobot {
   
        //X is for shooting 
         else if (stickx.getRawButton(4)==true)
-        	chosen = TeleopFunctions.SHOOT; 
+            chosen = TeleopFunctions.RESET;
         
         //B is for getting the ball to the right place for intake 
         else if (stickx.getRawButton(2)==true)
@@ -307,6 +374,8 @@ public class Robot extends IterativeRobot {
         	
         		
         case RESET: //this is for calibration
+        	
+        	System.out.println("IN RESET CASE");
         	if (armR.getEncPosition()>= 5)
         	{
         		armR.set(-1); //rotates the arm up
@@ -342,6 +411,8 @@ public class Robot extends IterativeRobot {
         	break; 
         
         case LOWBAR: //this gets the arm to the right place for the low bar
+        	
+        	System.out.println("IN LOWBAR CASE");
         
         	if (armR.getEncPosition()<LOWBARHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
         		armR.set(-1);
@@ -358,6 +429,8 @@ public class Robot extends IterativeRobot {
         
         case SHOOT: //this gets the arm to the right place for the low bar
         
+        	System.out.println("IN SHOOT CASE");
+        	
         	if (armR.getEncPosition()<SHOOTHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
         		armR.set(-1);
         	
@@ -373,6 +446,8 @@ public class Robot extends IterativeRobot {
         	
         case GRABBALL:  //this gets the arm to the right place for intake 
         
+        	System.out.println("IN GRABBALL CASE");
+        	
         	if (armR.getEncPosition()<INTAKEHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
         		armR.set(-1);
         	
@@ -386,9 +461,9 @@ public class Robot extends IterativeRobot {
         	}
         	break; 
       }   
-    }*/
+    }
     	
-   }
+  
        
                      
                 
