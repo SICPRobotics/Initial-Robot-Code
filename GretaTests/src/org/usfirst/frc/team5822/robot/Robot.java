@@ -5,6 +5,8 @@ import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
+import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Encoder;
@@ -46,28 +48,21 @@ public class Robot extends IterativeRobot {
 	Servo servo1;
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
-	Encoder encoderArm; 
 	AnalogInput ultrasonic; 
-    public static final int NONE = 0; 
-    public static final int LOWBAR = 1; 
-    public static final int GRABBALL = 2; 
-    public static final int CALIBRATE = 3;
-    public static final int SHOOT = 4; 
     public int timesLoop = 0; 
-    CANTalon testMotor = new CANTalon(0); 
-
+    
 	double tPower; 
 	int teleopFunction; 
 	
-	VictorSP armR; //this is the arm that rotates the ball intake
+	CANTalon armR; //this is the arm that rotates the ball intake
 	
 	Timer teleTimer = new Timer();
 	
 	PIDController gPid; 
 	
-	int intakeHeight; 
-	int lowBarHeight; 
-	int shootHeight; 
+	private final int INTAKEHEIGHT = 0; 
+	private final int LOWBARHEIGHT = 0; 
+	private final int SHOOTHEIGHT = 0; 
 
 	
 	 CameraServer server;
@@ -160,16 +155,13 @@ public class Robot extends IterativeRobot {
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
     	
-    	armR = new VictorSP (9); 
-    	encoderArm = new Encoder(0,1);
     	ultrasonic = new AnalogInput(0);
+    	
+    	armR = new CANTalon(0); 
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	armR.changeControlMode(TalonControlMode.Position);
 
-    	
-    	//sets up the automatic heights for button functions 
-    	intakeHeight = 0; 
-    	shootHeight = 0; 
-    	lowBarHeight = 0; 
-    	
+  	
 
     }//End robotInit
     
@@ -214,12 +206,15 @@ public class Robot extends IterativeRobot {
     /**
      * This function is called once each time the robot enters tele-operated mode
      */
+    
+    int count=0; 
     public void teleopInit()
     {
    
-    	teleopFunction = 0;
     	/*gPid.disable();*/
-    	
+    	myRobot.setSafetyEnabled(false);
+    	count=0; 
+    	armR.setEncPosition(0);
     }
 
     /**
@@ -230,20 +225,20 @@ public class Robot extends IterativeRobot {
     
     public enum TeleopFunctions 
     {
-    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), CALIBRATE(3); 
+    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3); 
     	
-    	private int val; 
+    	public final int val; 
     	
-    	private TeleopFunctions(int val){
-    		this.val = val; 
+    	private TeleopFunctions(int value){
+    		val = value; 
     	}
     }
     
     
     
-    TeleopFunctions chosen; 
     double voltage; 
     double value; 
+    
    
   
     public void teleopPeriodic() 
@@ -252,25 +247,35 @@ public class Robot extends IterativeRobot {
     	System.out.println((voltage*43.796)-2.6048);
     	    	
     	Timer.delay(1);*/
-	
-    	myRobot.setSafetyEnabled(false);
-  	
-        
-    	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
-    	armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
-     
+    	
+    	if (count<1000)
+    		armR.setEncPosition(100);
+    	
+    	if (count<1000)
+    	{
+    		armR.setEncPosition(300);
+    	 	}
+    	
+    	if (count>=2000)
+    		count=0; 
+    	
+    	if (count%50==0)
+    		System.out.println(armR.getEncPosition()); 
+    	
+    	count++; 
+    	
+    	/*TeleopFunctions chosen; 
+	               	     
     	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
+*/    	
     	
-    	testMotor.set(1);
-    	
-/*    	
-        //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
+       /* //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
-       
-        
+      	chosen = TeleopFunctions.NONE;     	
+    	
         //Y is for the calibration 
         if (stickx.getRawButton(3)==true)
-        	chosen = TeleopFunctions.CALIBRATE; 
+        	chosen = TeleopFunctions.RESET; 
         
 
         //A is for getting the ball to the right place for crossing low bar
@@ -286,39 +291,42 @@ public class Robot extends IterativeRobot {
         else if (stickx.getRawButton(2)==true)
         	chosen = TeleopFunctions.GRABBALL;
         
-        else 
-        	chosen = TeleopFunctions.NONE; 
-      
+           
         
         switch (chosen)
         {
     	//nothing happens, the arm has not been signaled 
         //this is at the beginning so the case statement will break if there is no instruction
-        case NONE: teleopFunction = 0; 
-        		break; 
+        case NONE: 
+        	
+        	//these are in here because they should only happen if other instructions are not given 
+        	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
+        	armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
+        	
+        	break; 
         	
         		
-        case CALIBRATE: //this is for calibration
-        {
-        	if (encoderArm.get()>0)
+        case RESET: //this is for calibration
+        	if (armR.getEncPosition()>= 5)
         	{
-        		armR.set(1); //rotates the arm up
+        		armR.set(-1); //rotates the arm up
         	}
         	
-        	if(encoderArm.get()<=-0.1 || encoderArm.get()>= 0.1) //this sets a bound on either side so robot doesn't have to be perfect
+        	if(armR.getEncPosition()<=-5 || armR.getEncPosition()>= 5) //this sets a bound on either side so robot doesn't have to be perfect
         	{
-        		armR.set(1);
+        		armR.set(-1);
+        		teleTimer.reset();
         		teleTimer.start();
         	}
         	
         	//jack was here, he did not contribute
         	
         	if (teleTimer.get()>0 && teleTimer.get()<0.5)//adjust time as needed
-        		armR.set(1);
+        		armR.set(-1);
         	
         	if (teleTimer.get()>0.5)
         	{
-        		if(encoderArm.get()<=-0.1 || encoderArm.get()>= 0.1) //this sets a bound on either side, for error - adjust
+        		if(armR.getEncPosition()<=-0.1 || armR.getEncPosition()>= 0.1) //this sets a bound on either side, for error - adjust
 				{
 	        		armR.set(0);
 	        		teleTimer.reset(); 
@@ -330,54 +338,57 @@ public class Robot extends IterativeRobot {
         			teleTimer.reset();
         		}
         	}
-        		
-        }
+        	              		
+        	break; 
         
         case LOWBAR: //this gets the arm to the right place for the low bar
-        {
-        	if (encoderArm.get()<lowBarHeight-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(1);
+        
+        	if (armR.getEncPosition()<LOWBARHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
+        		armR.set(-1);
         	
-        	else if (encoderArm.get()>lowBarHeight+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(-1); 
+        	else if (armR.getEncPosition()>LOWBARHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
+        		armR.set(1); 
         	
         	else 
         	{
         		armR.set(0);
         		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
         	}
-        }
+        	break; 
         
         case SHOOT: //this gets the arm to the right place for the low bar
-        {
-        	if (encoderArm.get()<shootHeight-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(1);
+        
+        	if (armR.getEncPosition()<SHOOTHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
+        		armR.set(-1);
         	
-        	else if (encoderArm.get()>shootHeight+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(-1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        }
-        case GRABBALL: teleopFunction = 3; //this gets the arm to the right place for intake 
-        {
-        	if (encoderArm.get()<intakeHeight-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(1);
-        	
-        	else if (encoderArm.get()>intakeHeight+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(-1); 
+        	else if (armR.getEncPosition()>SHOOTHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
+        		armR.set(1); 
         	
         	else 
         	{
         		armR.set(0);
         		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
         	}
-        }
-      }   */
-    }
+        	break; 
+        	
+        case GRABBALL:  //this gets the arm to the right place for intake 
+        
+        	if (armR.getEncPosition()<INTAKEHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
+        		armR.set(-1);
+        	
+        	else if (armR.getEncPosition()>INTAKEHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
+        		armR.set(1); 
+        	
+        	else 
+        	{
+        		armR.set(0);
+        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
+        	}
+        	break; 
+      }   
+    }*/
+    	
+   }
        
                      
                 
