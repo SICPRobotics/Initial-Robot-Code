@@ -181,6 +181,11 @@ public class Robot extends IterativeRobot {
     	armR = new CANTalon(1); 
 /*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
     	armR.changeControlMode(TalonControlMode.Position);*/
+    	
+    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
+    	armR.setPID(0.5, 0.001, 0.0); //Set the PID constants (p, i, d)
+    	armR.enableControl(); //Enable PID control on the talon
 
   	
 
@@ -375,14 +380,17 @@ public class Robot extends IterativeRobot {
         	
         	//these are in here because they should only happen if other instructions are not given 
         	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
-        	armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
-        	
+        	//armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
+        	armR.set(5000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
         	break; 
         	
         		
         case RESET: //this is for calibration
         	
-        	System.out.println("IN RESET CASE");
+        	armR.set(3000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
+
+        	
+        	/*System.out.println("IN RESET CASE");
         	if (armR.getEncPosition()>= 5)
         	{
         		armR.set(-1); //rotates the arm up
@@ -413,7 +421,7 @@ public class Robot extends IterativeRobot {
         		{
         			teleTimer.reset();
         		}
-        	}
+        	}*/
         	              		
         	break; 
         
