@@ -178,9 +178,9 @@ public class Robot extends IterativeRobot {
     	
     	ultrasonic = new AnalogInput(0);
     	
-    	armR = new CANTalon(0); 
-    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	armR.changeControlMode(TalonControlMode.Position);
+    	armR = new CANTalon(1); 
+/*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	armR.changeControlMode(TalonControlMode.Position);*/
 
   	
 
@@ -235,7 +235,7 @@ public class Robot extends IterativeRobot {
     	/*gPid.disable();*/
     	myRobot.setSafetyEnabled(false);
     	count=0; 
-    	armR.setEncPosition(0);
+
     }
 
     /**
@@ -269,19 +269,26 @@ public class Robot extends IterativeRobot {
     	    	
     	Timer.delay(1);*/
     	
-/*    	System.out.println("Curent Amps: " + armR.getOutputCurrent());
-    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
-    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
-    	System.out.println("BusV: " + armR.getBusVoltage()); 
-    	System.out.println(""); 
-    	System.out.println("AnalogPos: " + armR.getAnalogInPosition()); 
-    	System.out.println("AnalogVelocity: " + armR.getAnalogInVelocity());
-    	System.out.println(""); 
-    	System.out.println("SelectedSensorPos: " + armR.getPosition());
-    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
-    	System.out.println(""); 
-    	System.out.println("ClosedLoopError: " + armR.getError());*/
     	
+    	if (count%50==0)
+    	{
+	    /*	System.out.println("Curent Amps: " + armR.getOutputCurrent());*/
+	    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
+	    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
+	    	System.out.println("BusV: " + armR.getBusVoltage()); 
+	    	System.out.println(""); 
+	    	System.out.println("AnalogPos: " + armR.getAnalogInPosition()); 
+	    	System.out.println("AnalogVelocity: " + armR.getAnalogInVelocity());
+	    	System.out.println(""); 
+	    	System.out.println("SelectedSensorPos: " + armR.getPosition());
+	    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
+	    	System.out.println(""); 
+	    	System.out.println("ClosedLoopError: " + armR.getError());
+    	}
+    	
+    	
+    	count++; 
+      	
     	
     /*	
     	if (count<1000)
