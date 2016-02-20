@@ -146,20 +146,17 @@ public class Robot extends IterativeRobot {
      */
 	 public void robotInit() {
     	
-//    	server = CameraServer.getInstance();
-//        server.setQuality(50);
-//		cameraFront = new USBCamera("cam0");
-//		cameraBack = new USBCamera("cam1");
-//		cameraFront.openCamera();
-//		cameraBack.openCamera();
-//		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
-
+		server = CameraServer.getInstance();
+        server.setQuality(50);
+		cameraFront = new USBCamera("cam0");
+		cameraBack = new USBCamera("cam1");
+		cameraFront.openCamera();
+		cameraBack.openCamera();
+		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
 		
-		//		camServer.setQuality(100);
-		
-//		activeCamera = cameraFront; 
-       //the camera name (ex "cam0") can be found through the roborio web interface
-//        server.startAutomaticCapture("cam"+cameraID);  
+		activeCamera = cameraFront; 
+       /*the camera name (ex "cam0") can be found through the roborio web interface*/
+        server.startAutomaticCapture("cam"+cameraID);  
         
     	//all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
@@ -349,7 +346,7 @@ public class Robot extends IterativeRobot {
     	intake.drive(stickx.getRawAxis(5), 0);
     	armR.set(stickx.getRawAxis(1));
     	
-    	/*if(stickx.getRawButton(5))
+    	if(stickx.getRawButton(5))
     	{
     		String camR; 
     		
@@ -378,7 +375,7 @@ public class Robot extends IterativeRobot {
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
-*/   	
+   	
    
     	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
