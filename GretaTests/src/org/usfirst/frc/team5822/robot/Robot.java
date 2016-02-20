@@ -27,7 +27,9 @@ import edu.wpi.first.wpilibj.VictorSP;
 import edu.wpi.first.wpilibj.buttons.JoystickButton;
 import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+/*import edu.wpi.first.wpilibj.networktables.NetworkTable;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;*/
 import edu.wpi.first.wpilibj.vision.USBCamera;
 import edu.wpi.first.wpilibj.Servo;
 
@@ -77,6 +79,8 @@ public class Robot extends IterativeRobot {
 
 	
 	 CameraServer server;
+	 
+/*	 SendableChooser chooser; */
 
 	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
 	    public class GyroPIDOutput implements PIDOutput 
@@ -142,18 +146,18 @@ public class Robot extends IterativeRobot {
      */
 	 public void robotInit() {
     	
-    	server = CameraServer.getInstance();
-        server.setQuality(50);
-		cameraFront = new USBCamera("cam0");
-		cameraBack = new USBCamera("cam1");
-		cameraFront.openCamera();
-		cameraBack.openCamera();
-		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
+//    	server = CameraServer.getInstance();
+//        server.setQuality(50);
+//		cameraFront = new USBCamera("cam0");
+//		cameraBack = new USBCamera("cam1");
+//		cameraFront.openCamera();
+//		cameraBack.openCamera();
+//		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
 
 		
 		//		camServer.setQuality(100);
 		
-		activeCamera = cameraFront; 
+//		activeCamera = cameraFront; 
        //the camera name (ex "cam0") can be found through the roborio web interface
 //        server.startAutomaticCapture("cam"+cameraID);  
         
@@ -182,12 +186,22 @@ public class Robot extends IterativeRobot {
 /*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
     	armR.changeControlMode(TalonControlMode.Position);*/
     	
-    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	/*armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
     	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
     	armR.setPID(0.5, 0.001, 0.0); //Set the PID constants (p, i, d)
     	armR.enableControl(); //Enable PID control on the talon
+*/    	
+    	/*SendableChooser chooser = new SendableChooser();
+    	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
+    	chooser.addDefault("Low Bar", "lowbar");
+    	chooser.addObject("Ramparts", "ramparts");
+    	chooser.addObject("Moat", "moat");
+    	chooser.addObject("Cheval de Frise", "cheval");
+    	chooser.addObject("Rock Wall", "rockwall");
+    	//ect...add the rest of the defenses
 
-  	
+    	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
+  	*/
 
     }//End robotInit
     
@@ -213,7 +227,24 @@ public class Robot extends IterativeRobot {
   		teleTimer.reset();
   		teleTimer.start();
   		timesLoop=0; 
+  		
+/*  		String defense = chooser.getSelected().toString();*/
+  		
     }
+        
+  		/*if (defense.equals("lowbar")) {
+  			System.out.println("RUNNING LOW BAR");
+  		} else if (defense.equals("ramparts")) {
+  			System.out.println("RUNNING RAMPARTS");
+  		} else if (defense.equals("moat")) {
+  			System.out.println("RUNNING MOAT");
+  		} else if (defense.equals("cheval")) {
+  			System.out.println("RUNNING CHEVAL");
+  		} else if (defense.equals("rockwall")){
+  			System.out.println("RUNNING ROCKWALL");
+    }
+  			
+    }*/
   	   	   	
     
 
@@ -275,9 +306,9 @@ public class Robot extends IterativeRobot {
     	Timer.delay(1);*/
     	
     	
-    	if (count%50==0)
+  /*  	if (count%50==0)
     	{
-	    /*	System.out.println("Curent Amps: " + armR.getOutputCurrent());*/
+	    	System.out.println("Curent Amps: " + armR.getOutputCurrent());
 	    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
 	    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
 	    	System.out.println("BusV: " + armR.getBusVoltage()); 
@@ -289,11 +320,11 @@ public class Robot extends IterativeRobot {
 	    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
 	    	System.out.println(""); 
 	    	System.out.println("ClosedLoopError: " + armR.getError());
-    	}
+    	}*/
     	
-    	
-    	count++; 
-      	
+//    	
+//    	count++; 
+//      	
     	
     /*	
     	if (count<1000)
@@ -315,8 +346,10 @@ public class Robot extends IterativeRobot {
     	TeleopFunctions chosen; 
 	               	     
     	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
+    	intake.drive(stickx.getRawAxis(5), 0);
+    	armR.set(stickx.getRawAxis(1));
     	
-    	if(stickx.getRawButton(5))
+    	/*if(stickx.getRawButton(5))
     	{
     		String camR; 
     		
@@ -345,12 +378,12 @@ public class Robot extends IterativeRobot {
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
-   	
+*/   	
    
     	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
-      	chosen = TeleopFunctions.NONE;     	
+      /*	chosen = TeleopFunctions.NONE;     	
     	
         //Y is for the calibration 
         if (stickx.getRawButton(3)==true)
@@ -370,9 +403,9 @@ public class Robot extends IterativeRobot {
         else if (stickx.getRawButton(2)==true)
         	chosen = TeleopFunctions.GRABBALL;
         
-           
+           */
         
-        switch (chosen)
+/*        switch (chosen)
         {
     	//nothing happens, the arm has not been signaled 
         //this is at the beginning so the case statement will break if there is no instruction
@@ -390,7 +423,7 @@ public class Robot extends IterativeRobot {
         	armR.set(3000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
 
         	
-        	/*System.out.println("IN RESET CASE");
+        	System.out.println("IN RESET CASE");
         	if (armR.getEncPosition()>= 5)
         	{
         		armR.set(-1); //rotates the arm up
@@ -421,7 +454,7 @@ public class Robot extends IterativeRobot {
         		{
         			teleTimer.reset();
         		}
-        	}*/
+        	}
         	              		
         	break; 
         
@@ -475,7 +508,7 @@ public class Robot extends IterativeRobot {
         		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
         	}
         	break; 
-      }   
+      }*/   
     }
     	
   
