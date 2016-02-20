@@ -62,6 +62,11 @@ public class Robot extends IterativeRobot {
 	public static USBCamera cameraFront;
 	public static USBCamera cameraBack;
 	public static USBCamera activeCamera; 
+	
+	boolean isCalibrating = false; 
+    double lastPosition; 
+    Timer calTimer = new Timer(); 
+   
     
 	double tPower; 
 	int teleopFunction; 
@@ -72,9 +77,9 @@ public class Robot extends IterativeRobot {
 	
 	PIDController gPid; 
 	
-	private final int INTAKEHEIGHT = 0; 
-	private final int LOWBARHEIGHT = 0; 
-	private final int SHOOTHEIGHT = 0; 
+	private final int INTAKEHEIGHT = -70000; 
+	private final int LOWBARHEIGHT = -63500; 
+	private final int SHOOTHEIGHT = -54000; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 
 	
@@ -180,6 +185,14 @@ public class Robot extends IterativeRobot {
     	ultrasonic = new AnalogInput(0);
     	
     	armR = new CANTalon(1); 
+    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
+    
+    	armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
+    	armR.reverseSensor(true);
+
+    	armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+
 /*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
     	armR.changeControlMode(TalonControlMode.Position);*/
     	
@@ -268,6 +281,8 @@ public class Robot extends IterativeRobot {
     	/*gPid.disable();*/
     	myRobot.setSafetyEnabled(false);
     	count=0; 
+    	startCalibration();
+    	
 
     }
 
@@ -279,7 +294,7 @@ public class Robot extends IterativeRobot {
     
     public enum TeleopFunctions 
     {
-    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3); 
+    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3), HOLD(4); 
     	
     	public final int val; 
     	
@@ -293,8 +308,9 @@ public class Robot extends IterativeRobot {
     double voltage; 
     double value; 
     
-   
-  
+    boolean isCalibrated = false; 
+    boolean firstTime = true;
+    
     public void teleopPeriodic() 
     {
     	/*voltage = ultrasonic.getVoltage();
@@ -302,51 +318,33 @@ public class Robot extends IterativeRobot {
     	    	
     	Timer.delay(1);*/
     	
-    	
-  /*  	if (count%50==0)
-    	{
-	    	System.out.println("Curent Amps: " + armR.getOutputCurrent());
-	    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
-	    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
-	    	System.out.println("BusV: " + armR.getBusVoltage()); 
-	    	System.out.println(""); 
-	    	System.out.println("AnalogPos: " + armR.getAnalogInPosition()); 
-	    	System.out.println("AnalogVelocity: " + armR.getAnalogInVelocity());
-	    	System.out.println(""); 
-	    	System.out.println("SelectedSensorPos: " + armR.getPosition());
-	    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
-	    	System.out.println(""); 
-	    	System.out.println("ClosedLoopError: " + armR.getError());
-    	}*/
-    	
-//    	
-//    	count++; 
-//      	
-    	
-    /*	
-    	if (count<1000)
-    		armR.setEncPosition(100);
-    	
-    	if (count<1000)
-    	{
-    		armR.setEncPosition(300);
-    	 	}
-    	
-    	if (count>=2000)
-    		count=0; 
-    	
-    	if (count%50==0)
-    		System.out.println(armR.getEncPosition()); 
-    	
-    	count++; */
-    	
+    	if (isCalibrating)
+    		checkCalibrationStatus(); 
+  	
     	TeleopFunctions chosen; 
-	               	     
-    	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
-    	intake.drive(stickx.getRawAxis(5), 0);
-    	armR.set(stickx.getRawAxis(1));
+    	int currentPosition = armR.getEncPosition();
+    	System.out.println(currentPosition);
     	
-    	if(stickx.getRawButton(5))
+ /*   	if (firstTime) {
+    	//armR.enableControl(); //Enable PID control on the talon
+    	System.out.println("FIRSTIME");
+//    	armR.setPosition( 9158); 
+    	armR.setPosition( 258);
+    	//armR.set(60000);
+    	firstTime = false;
+    	}*/
+
+    	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick
+    	
+    	double intakeAxis = stickx.getRawAxis(5); 
+    	if(Math.abs(intakeAxis)<0.25) 
+    		intakeAxis=0; 
+    		
+    	intake.drive(intakeAxis, 0);
+		
+    	//armR.set(stickx.getRawAxis(1));
+    	
+    	if(stickj.getRawButton(2))
     	{
     		String camR; 
     		
@@ -375,12 +373,14 @@ public class Robot extends IterativeRobot {
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
+		
+		
    	
    
     	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
-      /*	chosen = TeleopFunctions.NONE;     	
+      	chosen = TeleopFunctions.NONE;     	
     	
         //Y is for the calibration 
         if (stickx.getRawButton(3)==true)
@@ -400,7 +400,54 @@ public class Robot extends IterativeRobot {
         else if (stickx.getRawButton(2)==true)
         	chosen = TeleopFunctions.GRABBALL;
         
-           */
+        //Upper Right Button is for holding the intake arm in its place
+        else if (stickx.getRawButton(6)==true)
+        	chosen = TeleopFunctions.HOLD;
+        
+           
+        switch (chosen)
+        {
+	        case NONE: 
+	        	break; 
+	        
+	        case RESET:
+	        	startCalibration(); 
+	        	break; 
+	        	
+	        case GRABBALL:
+	        	adjustArmHeight(INTAKEHEIGHT); 
+	        	break;
+	        	
+	        case LOWBAR: 
+	        	adjustArmHeight(LOWBARHEIGHT); 
+	        	break; 
+	        	
+	        case SHOOT:
+	        	adjustArmHeight(SHOOTHEIGHT); 
+	        	break; 
+	        	
+	        case HOLD: 
+	        	adjustArmHeight(armR.getPosition()); 
+	        	break; 
+        }
+        
+        if(!isCalibrating&&chosen!=TeleopFunctions.HOLD) {
+    		double armAxis = stickx.getRawAxis(1); 
+
+    		if(armR.getControlMode()==TalonControlMode.Position)
+    		{
+    			System.out.println("EXITING POSITION MODE");
+    			if (Math.abs(armAxis)>0.2)
+    			{
+    				armR.changeControlMode(TalonControlMode.PercentVbus);
+    				armR.set(armAxis*0.5);
+    			}
+    		}
+
+    		else 
+    			armR.set(armAxis*0.5);
+    	}
+        }
         
 /*        switch (chosen)
         {
@@ -415,97 +462,7 @@ public class Robot extends IterativeRobot {
         	break; 
         	
         		
-        case RESET: //this is for calibration
-        	
-        	armR.set(3000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
-
-        	
-        	System.out.println("IN RESET CASE");
-        	if (armR.getEncPosition()>= 5)
-        	{
-        		armR.set(-1); //rotates the arm up
-        	}
-        	
-        	if(armR.getEncPosition()<=-5 || armR.getEncPosition()>= 5) //this sets a bound on either side so robot doesn't have to be perfect
-        	{
-        		armR.set(-1);
-        		teleTimer.reset();
-        		teleTimer.start();
-        	}
-        	
-        	//jack was here, he did not contribute
-        	
-        	if (teleTimer.get()>0 && teleTimer.get()<0.5)//adjust time as needed
-        		armR.set(-1);
-        	
-        	if (teleTimer.get()>0.5)
-        	{
-        		if(armR.getEncPosition()<=-0.1 || armR.getEncPosition()>= 0.1) //this sets a bound on either side, for error - adjust
-				{
-	        		armR.set(0);
-	        		teleTimer.reset(); 
-	        		chosen = TeleopFunctions.NONE; //arm finishes calibrating so teleopFunction reset to default
-				}
-        		
-        		else 
-        		{
-        			teleTimer.reset();
-        		}
-        	}
-        	              		
-        	break; 
-        
-        case LOWBAR: //this gets the arm to the right place for the low bar
-        	
-        	System.out.println("IN LOWBAR CASE");
-        
-        	if (armR.getEncPosition()<LOWBARHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>LOWBARHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-        
-        case SHOOT: //this gets the arm to the right place for the low bar
-        
-        	System.out.println("IN SHOOT CASE");
-        	
-        	if (armR.getEncPosition()<SHOOTHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>SHOOTHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-        	
-        case GRABBALL:  //this gets the arm to the right place for intake 
-        
-        	System.out.println("IN GRABBALL CASE");
-        	
-        	if (armR.getEncPosition()<INTAKEHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>INTAKEHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-      }*/   
+           
     }
     	
   
@@ -521,4 +478,65 @@ public class Robot extends IterativeRobot {
     	LiveWindow.run();
     } //End Test Periodic 
     
+    public void startCalibration()
+    {
+    	isCalibrating=true; 
+    	isCalibrated = false; 
+    	armR.changeControlMode(TalonControlMode.PercentVbus);
+    	lastPosition = armR.getPosition();
+    	calTimer.start();
+    	armR.set(0.3);
+    	
+    }
+    
+    public boolean checkCalibrationStatus()
+    {
+    	double timerVal = calTimer.get();
+    	System.out.println("calTimer:" + timerVal);
+    	if (timerVal<0.5)
+    		return false; 
+    	
+		double newPosition = armR.getPosition(); 
+		System.out.println("cDelta:" + (newPosition-lastPosition));
+	
+		
+		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>10) 
+		{
+			calTimer.stop();
+			calTimer.reset();
+			
+			armR.setPosition(0); 
+			armR.set(0);
+			System.out.println("DONE Calibrating"); 
+			isCalibrating = false; 
+			isCalibrated = true; 
+			armR.enableBrakeMode(true);
+			return true; 
+			
+		}
+		
+		lastPosition = newPosition; 
+	
+    	return false;  
+    }
+    
+    public void adjustArmHeight (double height)
+    {
+    	if (isCalibrated)
+    	{
+	    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+	    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
+	    
+	    	armR.set(height);
+	    	armR.reverseSensor(true); 
+	    	armR.enableControl(); //Enable PID control on the talon
+    	}
+    	
+    	else 
+    		System.out.println("YOU NEED TO CALIBRATE!!"); 
+    	
+    	
+
+    }
+
 }
