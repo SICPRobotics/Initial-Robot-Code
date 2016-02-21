@@ -45,15 +45,9 @@ public class Robot extends IterativeRobot {
 	SICPRobotDrive intake;
 	Joystick stickx;
 	Joystick stickj; 
-	int autoSequenceCounter;
 	int gyroCounter; 
 	double speedCountTest; 
 	double Kp = 0.03; 
-	boolean buttonPressedA;
-    boolean buttonPressedB;
-	JoystickButton motorButtonA;		
-	JoystickButton motorButtonB;	
-	Servo servo1;
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic; 
@@ -62,6 +56,8 @@ public class Robot extends IterativeRobot {
 	public static USBCamera cameraFront;
 	public static USBCamera cameraBack;
 	public static USBCamera activeCamera; 
+	
+	boolean inverted; 
 	
 	boolean isCalibrating = false; 
     double lastPosition; 
@@ -77,8 +73,8 @@ public class Robot extends IterativeRobot {
 	
 	PIDController gPid; 
 	
-	private final int INTAKEHEIGHT = -70000; 
-	private final int LOWBARHEIGHT = -63500; 
+	private final int INTAKEHEIGHT = -69000; 
+	private final int LOWBARHEIGHT = -62000; 
 	private final int SHOOTHEIGHT = -54000; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 
@@ -152,7 +148,7 @@ public class Robot extends IterativeRobot {
 	 public void robotInit() {
     	
 		server = CameraServer.getInstance();
-        server.setQuality(50);
+        server.setQuality(25);
 		cameraFront = new USBCamera("cam0");
 		cameraBack = new USBCamera("cam1");
 		cameraFront.openCamera();
@@ -169,6 +165,7 @@ public class Robot extends IterativeRobot {
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+    	inverted = true; 
     	
     	//sets up intake
     	
@@ -220,7 +217,7 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousInit()  
     {    	
-    	autoSequenceCounter = 0;
+    
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
@@ -310,6 +307,9 @@ public class Robot extends IterativeRobot {
     
     boolean isCalibrated = false; 
     boolean firstTime = true;
+    double moveValue=0; 
+    double rotateValue = 0; 
+    int invertCount=1; 
     
     public void teleopPeriodic() 
     {
@@ -325,26 +325,32 @@ public class Robot extends IterativeRobot {
     	int currentPosition = armR.getEncPosition();
     	System.out.println(currentPosition);
     	
- /*   	if (firstTime) {
-    	//armR.enableControl(); //Enable PID control on the talon
-    	System.out.println("FIRSTIME");
-//    	armR.setPosition( 9158); 
-    	armR.setPosition( 258);
-    	//armR.set(60000);
-    	firstTime = false;
-    	}*/
+    	double scale = stickj.getRawAxis(3)*-1; 
+    	
+    	scale = ((scale+1)/6)+0.6; 
 
-    	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick
+    	moveValue = stickj.getRawAxis(1);
+    	rotateValue = stickj.getRawAxis(0); 
+    	
+    	if (Math.abs(moveValue)<0.005)
+    		moveValue = 0; 
+    	
+    	if (Math.abs(rotateValue)<0.005)
+    		rotateValue = 0;
+    	
+    	moveValue = moveValue*scale; 
+    	rotateValue = rotateValue*scale; 
+    	
+    	
+    	myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
     	
     	double intakeAxis = stickx.getRawAxis(5); 
     	if(Math.abs(intakeAxis)<0.25) 
     		intakeAxis=0; 
     		
     	intake.drive(intakeAxis, 0);
-		
-    	//armR.set(stickx.getRawAxis(1));
     	
-    	if(stickj.getRawButton(2))
+    	if(stickj.getRawButton(1))
     	{
     		String camR; 
     		
@@ -364,7 +370,6 @@ public class Robot extends IterativeRobot {
     		}
     		
     		camR = "cam" + cameraID;
-    		System.out.println("Enabling Camera: " + camR); 
     		 
     		
     		while(stickx.getRawButton(5));
@@ -373,11 +378,19 @@ public class Robot extends IterativeRobot {
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
-		
-		
-   	
-   
-    	
+			
+       	if (stickj.getRawButton(2))
+       	{  	     		
+       		
+        	inverted=!inverted; 
+        	
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, inverted);
+    
+       	}
+       	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
       	chosen = TeleopFunctions.NONE;     	
@@ -447,20 +460,6 @@ public class Robot extends IterativeRobot {
     		else 
     			armR.set(armAxis*0.5);
     	}
-        }
-        
-/*        switch (chosen)
-        {
-    	//nothing happens, the arm has not been signaled 
-        //this is at the beginning so the case statement will break if there is no instruction
-        case NONE: 
-        	
-        	//these are in here because they should only happen if other instructions are not given 
-        	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
-        	//armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
-        	armR.set(5000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
-        	break; 
-        	
         		
            
     }
