@@ -1,20 +1,14 @@
 package org.usfirst.frc.team5822.robot;
 
 
-import java.lang.reflect.Array;
-
 import com.ni.vision.NIVision;
 import com.ni.vision.NIVision.Image;
-
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
@@ -22,16 +16,12 @@ import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.PIDSourceType;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.Victor;
-import edu.wpi.first.wpilibj.VictorSP;
-import edu.wpi.first.wpilibj.buttons.JoystickButton;
-import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
-/*import edu.wpi.first.wpilibj.networktables.NetworkTable;
+import edu.wpi.first.wpilibj.networktables.NetworkTable;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;*/
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.vision.USBCamera;
-import edu.wpi.first.wpilibj.Servo;
+
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -45,23 +35,29 @@ public class Robot extends IterativeRobot {
 	SICPRobotDrive intake;
 	Joystick stickx;
 	Joystick stickj; 
-	int autoSequenceCounter;
 	int gyroCounter; 
 	double speedCountTest; 
 	double Kp = 0.03; 
-	boolean buttonPressedA;
-    boolean buttonPressedB;
-	JoystickButton motorButtonA;		
-	JoystickButton motorButtonB;	
-	Servo servo1;
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
-	AnalogInput ultrasonic; 
+	AnalogInput ultrasonic;
+	AnalogInput ultrasonic2; 
     public int timesLoop = 0; 
     int cameraID = 0; 
 	public static USBCamera cameraFront;
 	public static USBCamera cameraBack;
 	public static USBCamera activeCamera; 
+	
+	int turnCount;
+	
+	boolean inverted; 
+	
+	int autoCounter; 
+
+	boolean isCalibrating = false; 
+    double lastPosition; 
+    Timer calTimer = new Timer(); 
+   
     
 	double tPower; 
 	int teleopFunction; 
@@ -72,73 +68,17 @@ public class Robot extends IterativeRobot {
 	
 	PIDController gPid; 
 	
-	private final int INTAKEHEIGHT = 0; 
-	private final int LOWBARHEIGHT = 0; 
-	private final int SHOOTHEIGHT = 0; 
+	private final int INTAKEHEIGHT = -69000; 
+	private final int LOWBARHEIGHT = -62000; 
+	private final int SHOOTHEIGHT = -54000; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 
 	
 	 CameraServer server;
-	 
-/*	 SendableChooser chooser; */
+	 SendableChooser chooser; 
 
-	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
-	    public class GyroPIDOutput implements PIDOutput 
-	    {
-	    	int counter = 0; 
-	    	
-		    public void pidWrite(double output) 
-		    {
-		    		   
-   	
-		    	double scaled = output*0.15;
-		    	
-		    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
-		    	timesLoop++; 
-		    	
-		    		    
-		    }
-	    }
-	    
-	    public class GyroPIDSource implements PIDSource
-	    {
-	    	  /**
-	    	   * Set which parameter of the device you are using as a process control
-	    	   * variable.
-	    	   *
-	    	   * @param pidSource
-	    	   *            An enum to select the parameter.
-	    	   */
-	    	
-	    	private PIDSourceType myType; 
-	    	
-	    	  public void setPIDSourceType(PIDSourceType pidSource)
-	    	  {
-	       		  myType = pidSource; 
-	    	  }
-	    	  /**
-	    	   * Get which parameter of the device you are using as a process control
-	    	   * variable.
-	    	   *
-	    	   * @return the currently selected PID source parameter
-	    	   */
-	    	  public PIDSourceType getPIDSourceType()
-	    	  {
-	    		  return myType; 
-	    	  }
-	    	  /**
-	    	   * Get the result to use in PIDController
-	    	   *$
-	    	   * @return the result to use in PIDController
-	    	   */
-	    	  public double pidGet()
-	    	  {
-	    		  return gyro.getAngle();
-	    		  
-	    	  }
-	    	}
-
-	    
+	 String defense; 
+	
 	    
     /**
      * This function is run when the robot is first started up and should be
@@ -147,7 +87,7 @@ public class Robot extends IterativeRobot {
 	 public void robotInit() {
     	
 		server = CameraServer.getInstance();
-        server.setQuality(50);
+        server.setQuality(25);
 		cameraFront = new USBCamera("cam0");
 		cameraBack = new USBCamera("cam1");
 		cameraFront.openCamera();
@@ -164,6 +104,7 @@ public class Robot extends IterativeRobot {
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, true);
+    	inverted = true; 
     	
     	//sets up intake
     	
@@ -178,27 +119,38 @@ public class Robot extends IterativeRobot {
     	gyro.calibrate();
     	
     	ultrasonic = new AnalogInput(0);
+    	ultrasonic2 = new AnalogInput(1); 
     	
     	armR = new CANTalon(1); 
-/*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	armR.changeControlMode(TalonControlMode.Position);*/
+    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
+    
+    	armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
+    	armR.reverseSensor(true);
+
+    	armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	armR.changeControlMode(TalonControlMode.Position);
     	
-    	/*armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
     	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
     	armR.setPID(0.5, 0.001, 0.0); //Set the PID constants (p, i, d)
     	armR.enableControl(); //Enable PID control on the talon
-*/    	
-    	/*SendableChooser chooser = new SendableChooser();
+    	
+    	chooser = new SendableChooser();
     	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
     	chooser.addDefault("Low Bar", "lowbar");
     	chooser.addObject("Ramparts", "ramparts");
     	chooser.addObject("Moat", "moat");
-    	chooser.addObject("Cheval de Frise", "cheval");
+    	chooser.addObject("Rough Terrain", "rough");
     	chooser.addObject("Rock Wall", "rockwall");
-    	//ect...add the rest of the defenses
+    	chooser.addObject("Spy Bot", "spy");
+    	chooser.addObject("Reach Defense", "reach");
 
     	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
-  	*/
+  	
+    	   
 
     }//End robotInit
     
@@ -207,52 +159,99 @@ public class Robot extends IterativeRobot {
      */
     public void autonomousInit()  
     {    	
-    	autoSequenceCounter = 0;
+    
   	   	System.out.println("We have been through autonomousInit");
   	    gyro.reset();
   	    System.out.println("We have reset gyro"); 
   	    double pGain = 0.9;
   	    double iGain = 0.00521135; 
   	    double dGain = 38.834084496; 
-  	    tPower = 0.2;
   	    PIDSource gType = new GyroPIDSource ();
   	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
   		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
     	gPid.setInputRange(-360, 360);  
     	gPid.setSetpoint(0);
-  		gPid.enable();
+/*  		gPid.enable();*/
   		teleTimer.reset();
   		teleTimer.start();
   		timesLoop=0; 
+  		autoCounter = 0; 
   		
-/*  		String defense = chooser.getSelected().toString();*/
-  		
-    }
-        
-  		/*if (defense.equals("lowbar")) {
+  		defense = chooser.getSelected().toString();
+ 		
+   
+  		if (defense.equals("lowbar")) {
   			System.out.println("RUNNING LOW BAR");
   		} else if (defense.equals("ramparts")) {
   			System.out.println("RUNNING RAMPARTS");
   		} else if (defense.equals("moat")) {
   			System.out.println("RUNNING MOAT");
-  		} else if (defense.equals("cheval")) {
-  			System.out.println("RUNNING CHEVAL");
+  		} else if (defense.equals("rough")) {
+  			System.out.println("RUNNING ROUGH TERRAIN");
   		} else if (defense.equals("rockwall")){
   			System.out.println("RUNNING ROCKWALL");
+  		} else if (defense.equals("spy")){
+  				System.out.println("RUNNING SPY"); 
+  		} else if (defense.equals("reach")){
+  			System.out.println("RUNNING REACH");
+  		}
+  		
+  		turnCount = 0; 
+  		startCalibration(); 	
     }
-  			
-    }*/
   	   	   	
     
-
+  
 
     /**
      * This function is called periodically during autonomous
      */
+    
+    boolean next = false; 
+    
     public void autonomousPeriodic() 
     {
-        		
-    	    	    	   	
+    	if (isCalibrating)
+    		checkCalibrationStatus(); 
+    	
+    	if (defense.equals("lowbar"))
+    	{
+    		// gyro forward 
+    		//use ultrasonic to see when on defense 
+    		// use sonar to see when over the defense
+    		// drive forward
+    		//use sonar to know when to stop
+    		//use gyro to turn
+    		// drive forward
+    		//use sonar and/or run in to castle
+    		//shoot
+    		//stay
+    	}
+    	
+    	
+    	if (defense.equals("rockwall") || defense.equals("moat") || defense.equals("ramparts") || defense.equals("rough"))
+    	{
+    		// go fast forward 
+    		// use sonar to see where it is 
+    		// gun it 
+    		// use sonar to see when the wall steadily approaches - stop 
+    	}
+    		
+    	if (defense.equals("spy"))
+    		
+    	{
+    		//drive straight forward
+    		// use sonar to see castle
+    		//shoot 
+    		//stay 
+    	}
+    	
+    	if (defense.equals("reach"))
+    	{
+    		//drive forward slowly
+    		//use sonar to figure out when there
+    		//hold the position - stay 
+    	}
     }		
     	
     
@@ -268,6 +267,8 @@ public class Robot extends IterativeRobot {
     	/*gPid.disable();*/
     	myRobot.setSafetyEnabled(false);
     	count=0; 
+    	/*startCalibration();*/
+    	
 
     }
 
@@ -279,7 +280,7 @@ public class Robot extends IterativeRobot {
     
     public enum TeleopFunctions 
     {
-    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3); 
+    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3), HOLD(4); 
     	
     	public final int val; 
     	
@@ -293,60 +294,50 @@ public class Robot extends IterativeRobot {
     double voltage; 
     double value; 
     
-   
-  
+    boolean isCalibrated = false; 
+    boolean firstTime = true;
+    double moveValue=0; 
+    double rotateValue = 0; 
+    int invertCount=1; 
+    double voltage2=0; 
+    
     public void teleopPeriodic() 
     {
-    	/*voltage = ultrasonic.getVoltage();
-    	System.out.println((voltage*43.796)-2.6048);
-    	    	
-    	Timer.delay(1);*/
     	
-    	
-  /*  	if (count%50==0)
-    	{
-	    	System.out.println("Curent Amps: " + armR.getOutputCurrent());
-	    	System.out.println("OutputV: " + armR.getOutputVoltage()); 
-	    	System.out.println("Output %:  " + 100*(armR.getOutputVoltage()/armR.getBusVoltage())); 
-	    	System.out.println("BusV: " + armR.getBusVoltage()); 
-	    	System.out.println(""); 
-	    	System.out.println("AnalogPos: " + armR.getAnalogInPosition()); 
-	    	System.out.println("AnalogVelocity: " + armR.getAnalogInVelocity());
-	    	System.out.println(""); 
-	    	System.out.println("SelectedSensorPos: " + armR.getPosition());
-	    	System.out.println("SelectedSensorSpeed: " + armR.getSpeed()); 
-	    	System.out.println(""); 
-	    	System.out.println("ClosedLoopError: " + armR.getError());
-    	}*/
-    	
-//    	
-//    	count++; 
-//      	
-    	
-    /*	
-    	if (count<1000)
-    		armR.setEncPosition(100);
-    	
-    	if (count<1000)
-    	{
-    		armR.setEncPosition(300);
-    	 	}
-    	
-    	if (count>=2000)
-    		count=0; 
-    	
-    	if (count%50==0)
-    		System.out.println(armR.getEncPosition()); 
-    	
-    	count++; */
-    	
+    	if (isCalibrating)
+    		checkCalibrationStatus(); 
+  	
+    	System.out.println("Encoder Position: " + armR.getPosition()); 
     	TeleopFunctions chosen; 
-	               	     
-    	myRobot.arcadeDrive(stickj); //this causes the robot to be controlled by the other joystick 
-    	intake.drive(stickx.getRawAxis(5), 0);
-    	armR.set(stickx.getRawAxis(1));
+    	int currentPosition = armR.getEncPosition();
+    	System.out.println(currentPosition);
     	
-    	if(stickx.getRawButton(5))
+    	double scale = stickj.getRawAxis(3)*-1; 
+    	
+    	scale = ((scale+1)/6)+0.6; 
+
+    	moveValue = stickj.getRawAxis(1);
+    	rotateValue = stickj.getRawAxis(0); 
+    	
+    	if (Math.abs(moveValue)<0.005)
+    		moveValue = 0; 
+    	
+    	if (Math.abs(rotateValue)<0.005 && Math.abs(moveValue)>0)
+    		rotateValue = 0;
+    	
+    	moveValue = moveValue*scale; 
+    	rotateValue = rotateValue*scale; 
+    	
+    	
+    	myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
+    	
+    	double intakeAxis = stickx.getRawAxis(5); 
+    	if(Math.abs(intakeAxis)<0.25) 
+    		intakeAxis=0; 
+    		
+    	intake.drive(intakeAxis, 0);
+    	
+    	if(stickj.getRawButton(1))
     	{
     		String camR; 
     		
@@ -366,7 +357,6 @@ public class Robot extends IterativeRobot {
     		}
     		
     		camR = "cam" + cameraID;
-    		System.out.println("Enabling Camera: " + camR); 
     		 
     		
     		while(stickx.getRawButton(5));
@@ -375,12 +365,22 @@ public class Robot extends IterativeRobot {
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
-   	
-   
-    	
+			
+       	if (stickj.getRawButton(2))
+       	{  	     		
+       		
+        	inverted=!inverted; 
+        	
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontRight, inverted);
+        	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearRight, inverted);
+    
+       	}
+       	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
       
-      /*	chosen = TeleopFunctions.NONE;     	
+      	chosen = TeleopFunctions.NONE;     	
     	
         //Y is for the calibration 
         if (stickx.getRawButton(3)==true)
@@ -400,112 +400,55 @@ public class Robot extends IterativeRobot {
         else if (stickx.getRawButton(2)==true)
         	chosen = TeleopFunctions.GRABBALL;
         
-           */
+        //Upper Right Button is for holding the intake arm in its place
+        else if (stickx.getRawButton(6)==true)
+        	chosen = TeleopFunctions.HOLD;
         
-/*        switch (chosen)
+           
+        switch (chosen)
         {
-    	//nothing happens, the arm has not been signaled 
-        //this is at the beginning so the case statement will break if there is no instruction
-        case NONE: 
-        	
-        	//these are in here because they should only happen if other instructions are not given 
-        	intake.drive(stickx.getRawAxis(5), 0); //this causes the intake to be controlled by the analog stick on the right
-        	//armR.set(stickx.getRawAxis(1)); //this causes the rotating arm to be controlled by the analog stick on the left 
-        	armR.set(5000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
-        	break; 
-        	
-        		
-        case RESET: //this is for calibration
-        	
-        	armR.set(3000); //Tells the talon to go to 5000 encoder counts, using the preset PID parameters.
+	        case NONE: 
+	        	break; 
+	        
+	        case RESET:
+	        	startCalibration(); 
+	        	break; 
+	        	
+	        case GRABBALL:
+	        	adjustArmHeight(INTAKEHEIGHT); 
+	        	break;
+	        	
+	        case LOWBAR: 
+	        	adjustArmHeight(LOWBARHEIGHT); 
+	        	break; 
+	        	
+	        case SHOOT:
+	        	adjustArmHeight(SHOOTHEIGHT); 
+	        	break; 
+	        	
+	        case HOLD: 
+	        	adjustArmHeight(armR.getPosition()); 
+	        	break; 
+        }
+        
+        if(!isCalibrating&&chosen!=TeleopFunctions.HOLD) {
+    		double armAxis = stickx.getRawAxis(1); 
 
-        	
-        	System.out.println("IN RESET CASE");
-        	if (armR.getEncPosition()>= 5)
-        	{
-        		armR.set(-1); //rotates the arm up
-        	}
-        	
-        	if(armR.getEncPosition()<=-5 || armR.getEncPosition()>= 5) //this sets a bound on either side so robot doesn't have to be perfect
-        	{
-        		armR.set(-1);
-        		teleTimer.reset();
-        		teleTimer.start();
-        	}
-        	
-        	//jack was here, he did not contribute
-        	
-        	if (teleTimer.get()>0 && teleTimer.get()<0.5)//adjust time as needed
-        		armR.set(-1);
-        	
-        	if (teleTimer.get()>0.5)
-        	{
-        		if(armR.getEncPosition()<=-0.1 || armR.getEncPosition()>= 0.1) //this sets a bound on either side, for error - adjust
-				{
-	        		armR.set(0);
-	        		teleTimer.reset(); 
-	        		chosen = TeleopFunctions.NONE; //arm finishes calibrating so teleopFunction reset to default
-				}
+    		if(armR.getControlMode()==TalonControlMode.Position)
+    		{
+    			System.out.println("EXITING POSITION MODE");
+    			if (Math.abs(armAxis)>0.2)
+    			{
+    				armR.changeControlMode(TalonControlMode.PercentVbus);
+    				armR.set(armAxis*0.5);
+    			}
+    		}
+
+    		else 
+    			armR.set(armAxis*0.5);
+    	}
         		
-        		else 
-        		{
-        			teleTimer.reset();
-        		}
-        	}
-        	              		
-        	break; 
-        
-        case LOWBAR: //this gets the arm to the right place for the low bar
-        	
-        	System.out.println("IN LOWBAR CASE");
-        
-        	if (armR.getEncPosition()<LOWBARHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>LOWBARHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-        
-        case SHOOT: //this gets the arm to the right place for the low bar
-        
-        	System.out.println("IN SHOOT CASE");
-        	
-        	if (armR.getEncPosition()<SHOOTHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>SHOOTHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-        	
-        case GRABBALL:  //this gets the arm to the right place for intake 
-        
-        	System.out.println("IN GRABBALL CASE");
-        	
-        	if (armR.getEncPosition()<INTAKEHEIGHT-0.1) //make sure 0.1 is good number, adjust once the encoder is on
-        		armR.set(-1);
-        	
-        	else if (armR.getEncPosition()>INTAKEHEIGHT+0.1) //0.1 makes sure the robot doesn't have to be completely accurate
-        		armR.set(1); 
-        	
-        	else 
-        	{
-        		armR.set(0);
-        		chosen = TeleopFunctions.NONE; //arm is at iH so teleopFunction back to default
-        	}
-        	break; 
-      }*/   
+           
     }
     	
   
@@ -520,5 +463,163 @@ public class Robot extends IterativeRobot {
     public void testPeriodic() {
     	LiveWindow.run();
     } //End Test Periodic 
+    
+    public void startCalibration()
+    {
+    	isCalibrating=true; 
+    	isCalibrated = false; 
+    	armR.changeControlMode(TalonControlMode.PercentVbus);
+    	lastPosition = armR.getPosition();
+    	calTimer.start();
+    	armR.set(0.3);
+    	
+    }
+    
+    public boolean checkCalibrationStatus()
+    {
+    	double timerVal = calTimer.get();
+    	System.out.println("calTimer:" + timerVal);
+    	if (timerVal<0.5)
+    		return false; 
+    	
+		double newPosition = armR.getPosition(); 
+		System.out.println("cDelta:" + (newPosition-lastPosition));
+	
+		
+		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>10) 
+		{
+			calTimer.stop();
+			calTimer.reset();
+			
+			armR.setPosition(0); 
+			armR.set(0);
+			System.out.println("DONE Calibrating"); 
+			isCalibrating = false; 
+			isCalibrated = true; 
+			armR.enableBrakeMode(true);
+			return true; 
+			
+		}
+		
+		lastPosition = newPosition; 
+	
+    	return false;  
+    } 
+    
+    public void adjustArmHeight (double height)
+    {
+    	if (isCalibrated)
+    	{
+	    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+	    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
+	    
+	    	armR.set(height);
+	    	armR.reverseSensor(true); 
+	    	armR.enableControl(); //Enable PID control on the talon
+    	}
+    	
+    	else 
+    		System.out.println("YOU NEED TO CALIBRATE!!"); 
+    	
+    	
+
+    }
+    
+    public double inchFromHRLV (double volts)
+    {
+    	double v = (volts*43.796)-2.6048; 
+    	return v; 
+    }
+    
+    public double inchFromLV (double volts)
+    {
+    	 double v = (volts*91.019) + 5.0692; 
+    	 return v; 
+    }
+    
+
+    public boolean turn (double angle)
+    {
+    
+    	
+    	if (gyro.getAngle()<angle+2)
+    	{
+    		myRobot.drive(0.2, 1);
+    		return false; 
+    	}
+    	
+    	else if (gyro.getAngle()>angle-2)
+    	{
+    		myRobot.drive(0.2, 1);
+    		return false; 
+    	}
+    	
+    	else 
+    		return true; 
+    }
+    
+  //internal class to write to myRobot (a RobotDrive object) using a PIDOutput
+    public class GyroPIDOutput implements PIDOutput 
+    {
+    	int counter = 0; 
+    	double tPower=0;
+    	
+    	public void setPower(double power)
+    	{
+    		tPower = power; 
+    	}
+    	
+	    public void pidWrite(double output) 
+	    {
+	    		   
+	
+	    	double scaled = output*0.15;
+	    	
+	    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
+	    	timesLoop++; 
+	    	
+	    		    
+	    }
+    }
+    
+    public class GyroPIDSource implements PIDSource
+    {
+    	  /**
+    	   * Set which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @param pidSource
+    	   *            An enum to select the parameter.
+    	   */
+    	
+    	private PIDSourceType myType; 
+    	
+    	  public void setPIDSourceType(PIDSourceType pidSource)
+    	  {
+       		  myType = pidSource; 
+    	  }
+    	  /**
+    	   * Get which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @return the currently selected PID source parameter
+    	   */
+    	  public PIDSourceType getPIDSourceType()
+    	  {
+    		  return myType; 
+    	  }
+    	  /**
+    	   * Get the result to use in PIDController
+    	   *$
+    	   * @return the result to use in PIDController
+    	   */
+    	  public double pidGet()
+    	  {
+    		  return gyro.getAngle();
+    		  
+    	  }
+    	}
+
+    
     
 }
