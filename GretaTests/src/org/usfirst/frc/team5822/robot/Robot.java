@@ -1,20 +1,14 @@
 package org.usfirst.frc.team5822.robot;
 
 
-import java.lang.reflect.Array;
-
 import com.ni.vision.NIVision;
 import com.ni.vision.NIVision.Image;
-
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
-import edu.wpi.first.wpilibj.AnalogGyro;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PIDController;
@@ -22,16 +16,12 @@ import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.PIDSourceType;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.Victor;
-import edu.wpi.first.wpilibj.VictorSP;
-import edu.wpi.first.wpilibj.buttons.JoystickButton;
-import edu.wpi.first.wpilibj.interfaces.Gyro;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
-/*import edu.wpi.first.wpilibj.networktables.NetworkTable;
+import edu.wpi.first.wpilibj.networktables.NetworkTable;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;*/
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.vision.USBCamera;
-import edu.wpi.first.wpilibj.Servo;
+
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -50,15 +40,20 @@ public class Robot extends IterativeRobot {
 	double Kp = 0.03; 
 	Timer autoTimer = new Timer();
 	ADXRS450_Gyro gyro;
-	AnalogInput ultrasonic; 
+	AnalogInput ultrasonic;
+	AnalogInput ultrasonic2; 
     public int timesLoop = 0; 
     int cameraID = 0; 
 	public static USBCamera cameraFront;
 	public static USBCamera cameraBack;
 	public static USBCamera activeCamera; 
 	
+	int turnCount;
+	
 	boolean inverted; 
 	
+	int autoCounter; 
+
 	boolean isCalibrating = false; 
     double lastPosition; 
     Timer calTimer = new Timer(); 
@@ -80,66 +75,10 @@ public class Robot extends IterativeRobot {
 
 	
 	 CameraServer server;
-	 
-/*	 SendableChooser chooser; */
+	 SendableChooser chooser; 
 
-	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
-	    public class GyroPIDOutput implements PIDOutput 
-	    {
-	    	int counter = 0; 
-	    	
-		    public void pidWrite(double output) 
-		    {
-		    		   
-   	
-		    	double scaled = output*0.15;
-		    	
-		    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
-		    	timesLoop++; 
-		    	
-		    		    
-		    }
-	    }
-	    
-	    public class GyroPIDSource implements PIDSource
-	    {
-	    	  /**
-	    	   * Set which parameter of the device you are using as a process control
-	    	   * variable.
-	    	   *
-	    	   * @param pidSource
-	    	   *            An enum to select the parameter.
-	    	   */
-	    	
-	    	private PIDSourceType myType; 
-	    	
-	    	  public void setPIDSourceType(PIDSourceType pidSource)
-	    	  {
-	       		  myType = pidSource; 
-	    	  }
-	    	  /**
-	    	   * Get which parameter of the device you are using as a process control
-	    	   * variable.
-	    	   *
-	    	   * @return the currently selected PID source parameter
-	    	   */
-	    	  public PIDSourceType getPIDSourceType()
-	    	  {
-	    		  return myType; 
-	    	  }
-	    	  /**
-	    	   * Get the result to use in PIDController
-	    	   *$
-	    	   * @return the result to use in PIDController
-	    	   */
-	    	  public double pidGet()
-	    	  {
-	    		  return gyro.getAngle();
-	    		  
-	    	  }
-	    	}
-
-	    
+	 String defense; 
+	
 	    
     /**
      * This function is run when the robot is first started up and should be
@@ -180,6 +119,7 @@ public class Robot extends IterativeRobot {
     	gyro.calibrate();
     	
     	ultrasonic = new AnalogInput(0);
+    	ultrasonic2 = new AnalogInput(1); 
     	
     	armR = new CANTalon(1); 
     	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
@@ -190,25 +130,27 @@ public class Robot extends IterativeRobot {
 
     	armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
 
-/*    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	armR.changeControlMode(TalonControlMode.Position);*/
+    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
+    	armR.changeControlMode(TalonControlMode.Position);
     	
-    	/*armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
     	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
     	armR.setPID(0.5, 0.001, 0.0); //Set the PID constants (p, i, d)
     	armR.enableControl(); //Enable PID control on the talon
-*/    	
-    	/*SendableChooser chooser = new SendableChooser();
+    	
+    	chooser = new SendableChooser();
     	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
     	chooser.addDefault("Low Bar", "lowbar");
     	chooser.addObject("Ramparts", "ramparts");
     	chooser.addObject("Moat", "moat");
-    	chooser.addObject("Cheval de Frise", "cheval");
+    	chooser.addObject("Rough Terrain", "rough");
     	chooser.addObject("Rock Wall", "rockwall");
-    	//ect...add the rest of the defenses
+    	chooser.addObject("Spy Bot", "spy");
+    	chooser.addObject("Reach Defense", "reach");
 
     	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
-  	*/
+  	
+    	   
 
     }//End robotInit
     
@@ -224,45 +166,92 @@ public class Robot extends IterativeRobot {
   	    double pGain = 0.9;
   	    double iGain = 0.00521135; 
   	    double dGain = 38.834084496; 
-  	    tPower = 0.2;
   	    PIDSource gType = new GyroPIDSource ();
   	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
   		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
     	gPid.setInputRange(-360, 360);  
     	gPid.setSetpoint(0);
-  		gPid.enable();
+/*  		gPid.enable();*/
   		teleTimer.reset();
   		teleTimer.start();
   		timesLoop=0; 
+  		autoCounter = 0; 
   		
-/*  		String defense = chooser.getSelected().toString();*/
-  		
-    }
-        
-  		/*if (defense.equals("lowbar")) {
+  		defense = chooser.getSelected().toString();
+ 		
+   
+  		if (defense.equals("lowbar")) {
   			System.out.println("RUNNING LOW BAR");
   		} else if (defense.equals("ramparts")) {
   			System.out.println("RUNNING RAMPARTS");
   		} else if (defense.equals("moat")) {
   			System.out.println("RUNNING MOAT");
-  		} else if (defense.equals("cheval")) {
-  			System.out.println("RUNNING CHEVAL");
+  		} else if (defense.equals("rough")) {
+  			System.out.println("RUNNING ROUGH TERRAIN");
   		} else if (defense.equals("rockwall")){
   			System.out.println("RUNNING ROCKWALL");
+  		} else if (defense.equals("spy")){
+  				System.out.println("RUNNING SPY"); 
+  		} else if (defense.equals("reach")){
+  			System.out.println("RUNNING REACH");
+  		}
+  		
+  		turnCount = 0; 
+  		startCalibration(); 	
     }
-  			
-    }*/
   	   	   	
     
-
+  
 
     /**
      * This function is called periodically during autonomous
      */
+    
+    boolean next = false; 
+    
     public void autonomousPeriodic() 
     {
-        		
-    	    	    	   	
+    	if (isCalibrating)
+    		checkCalibrationStatus(); 
+    	
+    	if (defense.equals("lowbar"))
+    	{
+    		// gyro forward 
+    		//use ultrasonic to see when on defense 
+    		// use sonar to see when over the defense
+    		// drive forward
+    		//use sonar to know when to stop
+    		//use gyro to turn
+    		// drive forward
+    		//use sonar and/or run in to castle
+    		//shoot
+    		//stay
+    	}
+    	
+    	
+    	if (defense.equals("rockwall") || defense.equals("moat") || defense.equals("ramparts") || defense.equals("rough"))
+    	{
+    		// go fast forward 
+    		// use sonar to see where it is 
+    		// gun it 
+    		// use sonar to see when the wall steadily approaches - stop 
+    	}
+    		
+    	if (defense.equals("spy"))
+    		
+    	{
+    		//drive straight forward
+    		// use sonar to see castle
+    		//shoot 
+    		//stay 
+    	}
+    	
+    	if (defense.equals("reach"))
+    	{
+    		//drive forward slowly
+    		//use sonar to figure out when there
+    		//hold the position - stay 
+    	}
     }		
     	
     
@@ -278,7 +267,7 @@ public class Robot extends IterativeRobot {
     	/*gPid.disable();*/
     	myRobot.setSafetyEnabled(false);
     	count=0; 
-    	startCalibration();
+    	/*startCalibration();*/
     	
 
     }
@@ -310,17 +299,15 @@ public class Robot extends IterativeRobot {
     double moveValue=0; 
     double rotateValue = 0; 
     int invertCount=1; 
+    double voltage2=0; 
     
     public void teleopPeriodic() 
     {
-    	/*voltage = ultrasonic.getVoltage();
-    	System.out.println((voltage*43.796)-2.6048);
-    	    	
-    	Timer.delay(1);*/
     	
     	if (isCalibrating)
     		checkCalibrationStatus(); 
   	
+    	System.out.println("Encoder Position: " + armR.getPosition()); 
     	TeleopFunctions chosen; 
     	int currentPosition = armR.getEncPosition();
     	System.out.println(currentPosition);
@@ -335,7 +322,7 @@ public class Robot extends IterativeRobot {
     	if (Math.abs(moveValue)<0.005)
     		moveValue = 0; 
     	
-    	if (Math.abs(rotateValue)<0.005)
+    	if (Math.abs(rotateValue)<0.005 && Math.abs(moveValue)>0)
     		rotateValue = 0;
     	
     	moveValue = moveValue*scale; 
@@ -517,7 +504,7 @@ public class Robot extends IterativeRobot {
 		lastPosition = newPosition; 
 	
     	return false;  
-    }
+    } 
     
     public void adjustArmHeight (double height)
     {
@@ -537,5 +524,102 @@ public class Robot extends IterativeRobot {
     	
 
     }
+    
+    public double inchFromHRLV (double volts)
+    {
+    	double v = (volts*43.796)-2.6048; 
+    	return v; 
+    }
+    
+    public double inchFromLV (double volts)
+    {
+    	 double v = (volts*91.019) + 5.0692; 
+    	 return v; 
+    }
+    
 
+    public boolean turn (double angle)
+    {
+    
+    	
+    	if (gyro.getAngle()<angle+2)
+    	{
+    		myRobot.drive(0.2, 1);
+    		return false; 
+    	}
+    	
+    	else if (gyro.getAngle()>angle-2)
+    	{
+    		myRobot.drive(0.2, 1);
+    		return false; 
+    	}
+    	
+    	else 
+    		return true; 
+    }
+    
+  //internal class to write to myRobot (a RobotDrive object) using a PIDOutput
+    public class GyroPIDOutput implements PIDOutput 
+    {
+    	int counter = 0; 
+    	double tPower=0;
+    	
+    	public void setPower(double power)
+    	{
+    		tPower = power; 
+    	}
+    	
+	    public void pidWrite(double output) 
+	    {
+	    		   
+	
+	    	double scaled = output*0.15;
+	    	
+	    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
+	    	timesLoop++; 
+	    	
+	    		    
+	    }
+    }
+    
+    public class GyroPIDSource implements PIDSource
+    {
+    	  /**
+    	   * Set which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @param pidSource
+    	   *            An enum to select the parameter.
+    	   */
+    	
+    	private PIDSourceType myType; 
+    	
+    	  public void setPIDSourceType(PIDSourceType pidSource)
+    	  {
+       		  myType = pidSource; 
+    	  }
+    	  /**
+    	   * Get which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @return the currently selected PID source parameter
+    	   */
+    	  public PIDSourceType getPIDSourceType()
+    	  {
+    		  return myType; 
+    	  }
+    	  /**
+    	   * Get the result to use in PIDController
+    	   *$
+    	   * @return the result to use in PIDController
+    	   */
+    	  public double pidGet()
+    	  {
+    		  return gyro.getAngle();
+    		  
+    	  }
+    	}
+
+    
+    
 }
