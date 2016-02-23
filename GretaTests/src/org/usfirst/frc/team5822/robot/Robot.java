@@ -52,7 +52,7 @@ public class Robot extends IterativeRobot {
 	
 	boolean inverted; 
 	
-	int autoCounter; 
+	int autoStep; 
 
 	boolean isCalibrating = false; 
     double lastPosition; 
@@ -78,6 +78,11 @@ public class Robot extends IterativeRobot {
 	 SendableChooser chooser; 
 
 	 String defense; 
+	 
+ 	//varaibles for the driveto method with the ultrasonic sensor
+ 	
+     double ultraVal; 
+     boolean seenOnce;
 	
 	    
     /**
@@ -122,7 +127,7 @@ public class Robot extends IterativeRobot {
     	ultrasonic2 = new AnalogInput(1); 
     	
     	armR = new CANTalon(1); 
-    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
+    	
     	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
     
     	armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
@@ -130,14 +135,7 @@ public class Robot extends IterativeRobot {
 
     	armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
 
-    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder);
-    	armR.changeControlMode(TalonControlMode.Position);
-    	
-    	armR.changeControlMode(TalonControlMode.Position); //fChange control mode of talon, default is PercentVbus (-1.0 to 1.0)
-    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
-    	armR.setPID(0.5, 0.001, 0.0); //Set the PID constants (p, i, d)
-    	armR.enableControl(); //Enable PID control on the talon
-    	
+	    	   	
     	chooser = new SendableChooser();
     	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
     	chooser.addDefault("Low Bar", "lowbar");
@@ -149,6 +147,11 @@ public class Robot extends IterativeRobot {
     	chooser.addObject("Reach Defense", "reach");
 
     	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
+    	
+    	//varaibles for the driveto method with the ultrasonic sensor
+    	
+    	ultraVal = 0; 
+        seenOnce = false;
   	
     	   
 
@@ -167,7 +170,8 @@ public class Robot extends IterativeRobot {
   	    double iGain = 0.00521135; 
   	    double dGain = 38.834084496; 
   	    PIDSource gType = new GyroPIDSource ();
-  	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
+  	    GyroPIDOutput gOutput = new GyroPIDOutput(); 
+   	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
   		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
     	gPid.setInputRange(-360, 360);  
     	gPid.setSetpoint(0);
@@ -175,7 +179,7 @@ public class Robot extends IterativeRobot {
   		teleTimer.reset();
   		teleTimer.start();
   		timesLoop=0; 
-  		autoCounter = 0; 
+  		autoStep = 0; 
   		
   		defense = chooser.getSelected().toString();
  		
@@ -211,11 +215,79 @@ public class Robot extends IterativeRobot {
     
     public void autonomousPeriodic() 
     {
+    	double ultraDistance; 
+    	
     	if (isCalibrating)
     		checkCalibrationStatus(); 
     	
+    	/*if (autoStep ==0)
+    	    if (ultraGoTo (24, ultrasonic, true, -0.175, -0.12))
+    	    	autoStep = 1; 
+    	*/
     	if (defense.equals("lowbar"))
     	{
+    		if (autoStep == 0)
+    		{
+    			gPid.enable();
+    			autoStep = 1; 
+    		}
+    		
+    		if (autoStep == 1)
+    		{
+    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
+    			adjustArmHeight(LOWBARHEIGHT); 
+    			
+    			if (ultraDistance < 36) //test this number
+    			{
+   					autoStep = 2; 
+   					autoTimer.reset(); 
+   	    			autoTimer.start();
+    			}
+    			
+    		if (autoStep == 2)
+    		{
+    			if (autoTimer.get()>0.2)
+    			{
+    				ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
+    				if (ultraDistance > 36)
+    				{
+    					autoTimer.reset();
+    					autoTimer.start();
+    					autoStep = 3; 
+    				}
+    			}
+    		}
+    		
+    		if (autoStep == 3)
+    		{
+    			if (autoTimer.get() > 0.15)
+    			{
+    				autoStep = 4; 
+    				gPid.disable();
+    				myRobot.drive(0, 0); //hold the position - stay
+    				
+    			
+    		}
+    		/*
+    		if (autoStep == 4)
+    		{
+    			gPid.setSetpoint(180);
+    			gPid.enable();
+    			autoStep=5; 
+    		}
+    		
+    		if (autoStep == 5)
+    		{
+    			if (ultraGoTo (72, ultrasonic, true, -0.3, -0.125)) 
+    			{
+    				autoStep = 6; 
+    				myRobot.drive(0, 0);
+    			}
+    			
+    			 
+    		}*/
+    		
+    	}
     		// gyro forward 
     		//use ultrasonic to see when on defense 
     		// use sonar to see when over the defense
@@ -226,7 +298,7 @@ public class Robot extends IterativeRobot {
     		//use sonar and/or run in to castle
     		//shoot
     		//stay
-    	}
+    	
     	
     	
     	if (defense.equals("rockwall") || defense.equals("moat") || defense.equals("ramparts") || defense.equals("rough"))
@@ -246,28 +318,63 @@ public class Robot extends IterativeRobot {
     		//stay 
     	}
     	
-    	if (defense.equals("reach"))
+    	/*if (defense.equals("reach"))
     	{
-    		//drive forward slowly
-    		//use sonar to figure out when there
-    		//hold the position - stay 
+    		if (autoStep == 0)
+    		{
+    			gPid.enable();
+    			autoStep = 1; 
+    		}
+    		
+    		if (autoStep == 1)
+    		{
+    			myRobot.drive(0.2, 0); //drive forward slowly
+    			
+    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
+    			
+    			if (ultraDistance < 24) //test this number
+    			{
+    				myRobot.drive(0,0);
+    				autoStep = 2; 
+    			}
+    			
+    		if (autoStep == 2)
+    		{
+    			autoTimer.reset(); 
+    			autoTimer.start();
+    			autoStep = 3; 
+    		}
+    		
+    		if (autoStep == 3)
+    		{
+    			if (autoTimer.get() < 0.5)
+    				myRobot.drive(0.175, 0);
+    			
+    			else 
+    			{
+    				autoStep = 4; 
+    				myRobot.drive(0, 0); //hold the position - stay
+    			}
+    		}
+
+    	}*/
     	}
-    }		
+    	} 
+    }
     	
     
-    
-    /**
-     * This function is called once each time the robot enters tele-operated mode
-     */
-    
-    int count=0; 
+    /*
+     * This function is called once each time the robot enters tele-operated mode*/
+        
+   
     public void teleopInit()
     {
    
-    	/*gPid.disable();*/
+    	/*if (gPid != null) gPid.disable();*/
+    	myRobot.drive(0, 0);
     	myRobot.setSafetyEnabled(false);
-    	count=0; 
-    	/*startCalibration();*/
+    	autoStep=0; 
+    	startCalibration();
     	
 
     }
@@ -314,7 +421,7 @@ public class Robot extends IterativeRobot {
     	
     	double scale = stickj.getRawAxis(3)*-1; 
     	
-    	scale = ((scale+1)/6)+0.6; 
+    	scale = ((scale+1)/5)+0.6; 
 
     	moveValue = stickj.getRawAxis(1);
     	rotateValue = stickj.getRawAxis(0); 
@@ -322,7 +429,7 @@ public class Robot extends IterativeRobot {
     	if (Math.abs(moveValue)<0.005)
     		moveValue = 0; 
     	
-    	if (Math.abs(rotateValue)<0.005 && Math.abs(moveValue)>0)
+    	if (Math.abs(rotateValue)<0.005 && Math.abs(moveValue)<0.1)
     		rotateValue = 0;
     	
     	moveValue = moveValue*scale; 
@@ -538,7 +645,7 @@ public class Robot extends IterativeRobot {
     }
     
 
-    public boolean turn (double angle)
+    public boolean turn (double angle, boolean right)
     {
     
     	
@@ -558,11 +665,58 @@ public class Robot extends IterativeRobot {
     		return true; 
     }
     
+ 
+    
+    public boolean ultraGoTo (double distance, AnalogInput ultra, boolean HRLV, double speedTo, double speedBack)
+    { 
+    	boolean toSpot = false; 
+    	
+    	    	
+    	if (HRLV)
+    		ultraVal = inchFromHRLV(ultra.getVoltage()); 
+    	else 
+    		ultraVal = inchFromLV(ultra.getVoltage()); 
+    	
+    	System.out.println("Current Ultra View: " + ultraVal);
+    	
+    	if (!seenOnce)
+    	{
+    		toSpot = false; 
+	    	if (distance < ultraVal)
+	    	{
+	    	
+	    	}
+	    	
+	    	else if (distance > ultraVal)
+	    	{
+	    		seenOnce = true; 
+	    	}
+    	}
+    	
+    	else 
+    	{
+    		if (distance >= ultraVal)
+    		{
+    			myRobot.drive(-speedBack, 0);
+    		}
+    		
+    		else 
+    		{
+    			myRobot.drive(0, 0);
+    			toSpot = true; 
+    			seenOnce = false; 
+    		}
+    		
+    	}
+   
+    	return toSpot; 
+    }
+    
   //internal class to write to myRobot (a RobotDrive object) using a PIDOutput
     public class GyroPIDOutput implements PIDOutput 
     {
     	int counter = 0; 
-    	double tPower=0;
+    	double tPower= -0.3;
     	
     	public void setPower(double power)
     	{
@@ -573,9 +727,11 @@ public class Robot extends IterativeRobot {
 	    {
 	    		   
 	
-	    	double scaled = output*0.15;
+	    	double scaled = output*0.1;
 	    	
-	    	myRobot.setLeftRightMotorOutputs(-1.0*(tPower+scaled), -1*(tPower-scaled));
+	    	myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
+	    	System.out.println("Left wheel: " + (-(tPower+scaled)));
+	    	System.out.println("Right wheel: " + (-(tPower-scaled)));
 	    	timesLoop++; 
 	    	
 	    		    
@@ -615,7 +771,9 @@ public class Robot extends IterativeRobot {
     	   */
     	  public double pidGet()
     	  {
+    		  System.out.println(gyro.getAngle());
     		  return gyro.getAngle();
+    		  
     		  
     	  }
     	}
