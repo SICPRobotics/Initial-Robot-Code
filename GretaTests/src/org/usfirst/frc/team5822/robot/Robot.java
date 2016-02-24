@@ -123,8 +123,8 @@ public class Robot extends IterativeRobot {
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
     	
-    	ultrasonic = new AnalogInput(0);
-    	ultrasonic2 = new AnalogInput(1); 
+    	ultrasonic = new AnalogInput(1);
+    	ultrasonic2 = new AnalogInput(0); 
     	
     	armR = new CANTalon(1); 
     	
@@ -152,6 +152,15 @@ public class Robot extends IterativeRobot {
     	
     	ultraVal = 0; 
         seenOnce = false;
+        
+  	    double pGain = 0.9;
+  	    double iGain = 0.00521135; 
+  	    double dGain = 38.834084496; 
+  	    PIDSource gType = new GyroPIDSource ();
+  	    GyroPIDOutput gOutput = new GyroPIDOutput(); 
+   	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
+  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
+    	gPid.setInputRange(-360, 360);  
   	
     	   
 
@@ -164,16 +173,9 @@ public class Robot extends IterativeRobot {
     {    	
     
   	   	System.out.println("We have been through autonomousInit");
-  	    gyro.reset();
+  	 	gyro.reset();
   	    System.out.println("We have reset gyro"); 
-  	    double pGain = 0.9;
-  	    double iGain = 0.00521135; 
-  	    double dGain = 38.834084496; 
-  	    PIDSource gType = new GyroPIDSource ();
-  	    GyroPIDOutput gOutput = new GyroPIDOutput(); 
-   	    gType.setPIDSourceType(PIDSourceType.kDisplacement);
-  		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
-    	gPid.setInputRange(-360, 360);  
+
     	
     	timesLoop=0; 
   		autoStep = 0; 
@@ -197,7 +199,7 @@ public class Robot extends IterativeRobot {
   			System.out.println("RUNNING REACH");
   		}
   		
-  		turnCount = 0; 
+  		
   		startCalibration(); 	
     }
   	   	   	
@@ -209,42 +211,254 @@ public class Robot extends IterativeRobot {
      */
     
     boolean next = false; 
+    boolean first = true; 
+    int counter =0; 
     
     public void autonomousPeriodic() 
     {
-    	double ultraDistance; 
+		if (counter++%20 ==0 )
+			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
+		
+		double ultraDistance; 
+    	 if (first)
+    	 {	 startCalibration(); 
+    	 	first = false; 
+    	 	return; 
+    	 }  
     	
     	if (isCalibrating)
+    	{
     		checkCalibrationStatus(); 
+    		return; 
+    	}
     	
     	/*if (autoStep ==0)
     	    if (ultraGoTo (24, ultrasonic, true, -0.175, -0.12))
     	    	autoStep = 1; 
     	*/
     	
-    	if (defense.equals("lowbar"))
+    	
+    	if (defense.equals("lowbar")) 
+    	{
+    		switch (autoStep)
+    		{
+		    	case 0: //start the PID to go straight
+				{
+				   	tPower = 0.3;
+					gPid.setSetpoint(0);
+					gPid.enable();
+					autoStep = 1; 
+					System.out.println("going to 1");
+					adjustArmHeight(-60000); 
+					break; 
+				}
+		    	
+		    	case 1:
+    			{
+	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
+	    			adjustArmHeight(-60000);
+	    			
+	    			if (ultraDistance < 24) //test this number
+	    			{
+	   					autoStep = 2; 
+	   					System.out.println("going to 2");
+	   					autoTimer.reset();
+	    			}
+	    			break;
+	    		}
+    			
+		    	case 2:
+		    	{ 
+		    		ultraDistance = inchFromHRLV(ultrasonic.getAverageVoltage()); 
+		    		if (ultraDistance > 150)
+		    		{
+		    			autoTimer.reset();
+		    			autoTimer.start();
+		    			System.out.println("going to 3");
+		    			autoStep = 3; 
+		    		}
+		    		
+		    		break;
+		    		   		
+		    	}
+		    	
+		    	case 3: 
+		    	{
+		    		ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
+		    		if (autoTimer.get() > 0.3)
+		    		{
+		    			if (ultraDistance > 100)
+		    			{
+		    				autoTimer.reset();
+		    				System.out.println("going to 4");
+		    				autoStep = 4; 
+		    			}
+		    			
+		    			else 
+		    			{
+		    				autoStep = 2;
+		    				System.out.println("going to 2");
+		    			}
+		    			
+		    		}
+		    	}
+		    	
+		   	    
+				case 4: // waits until the ultrasonic reads the right distance
+	    		{
+	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
+	    			
+	    			if (ultraDistance < 68)
+	    			{
+	    				gPid.disable();
+	    				myRobot.drive(0,  0);
+	    				autoStep = 5; 
+	    				System.out.println(ultraDistance); 
+	    				System.out.println("going to 5");
+	    			}
+	    			
+	    			break;
+	    		}
+		    
+				case 5: //uses a PID to go backwards
+	    	    {
+	    	    	tPower = -0.175; 
+	    	    	gPid.enable();
+	    	    	System.out.println("going to 6");
+	    	    	autoStep = 6;  
+	    	    	break;
+	    	    }
+		    
+				case 6: // goes backwards until back at the ultrasonic threshold 
+	    	    {
+	    	    	ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
+	    	    	
+	    	    	if (ultraDistance >= 68)
+	    	    	{
+	    	    		System.out.println(ultraDistance);
+	    	    		gPid.disable();
+	    	    		autoStep = 7; 
+	    	    		System.out.println("going to 7");
+	    	    	}
+	    	    	break;
+	    	    }
+	    	    
+				case 7: 
+	    		{
+	    			adjustArmHeight(SHOOTHEIGHT); 
+	    			if (gyro.getAngle()< 58.1) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
+	    			else 
+	    			{
+	    				autoStep = 8; 
+	    				System.out.println("going to 8");
+	    			}
+	    			
+	    			break;
+	    		}
+			
+				case 8: // turns slowly back 
+	    		{
+	    			if (gyro.getAngle() >= 58.1) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
+	    			else 
+	    			{
+	    				autoStep = 9; 
+	    				System.out.println("going to 9");
+	    			}
+	    			
+	    			break;
+	    		}
+			
+				case 9: //uses a PID to start to go forward
+	    		{
+	    			myRobot.drive(0, 0);
+	    			gPid.setSetpoint(58.1); //test this angle
+	    			tPower = 0.25; 
+	    			gPid.enable();
+	    			autoStep=10; 
+	    			System.out.println("going to 10");
+	    			
+	    			break;
+	    		}
+	    		
+				case 10: //stop at the goal, not exactly sure how this will know when to stop 
+				{
+					//if (at the distance)
+					
+					autoTimer.reset();
+					autoTimer.start();
+					autoStep = 11;
+					System.out.println("going to 11");
+						
+					break;
+				}
+					
+				case 11: //shoot
+				{
+									
+					if (autoTimer.get() > 1.5) //change num
+					{
+						gPid.disable();
+						myRobot.setLeftRightMotorOutputs(0,0);
+						System.out.println("going to 12");
+						autoStep = 12; 
+					}
+					
+					break;
+				}
+				
+				case 12: 
+				{
+					intake.setLeftRightMotorOutputs(-1, -1);					
+					
+					if (autoTimer.get()>3)  
+					{
+						autoStep = 13;
+						System.out.println("going to 13");
+						
+					}
+					
+					break;
+				}
+				
+				case 13: 
+				{
+					myRobot.setLeftRightMotorOutputs(0,0);
+					intake.drive(0, 0);
+					gPid.disable();
+					break; 
+				}
+			    		
+	    	}
+    	}
+    /*	if (defense.equals("lowbar"))
     	{
     		switch(autoStep)
     		{ 
+    			
     			case 0: //start the PID to go straight
     			{
-	    		   	tPower = -0.3;
+	    		   	tPower = -0.25;
 	    			gPid.setSetpoint(0);
 	    			gPid.enable();
-	    			autoStep = 1;
+	    			autoStep = 1; 
+	    			System.out.println("going to 1");
+	    			adjustArmHeight(LOWBARHEIGHT); 
 	    			break; 
     			}
     			
     			case 1:  //goes forward until sees wall on the side
     			{
 	    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(LOWBARHEIGHT); 
+	    			adjustArmHeight(LOWBARHEIGHT);
 	    			
-	    			if (ultraDistance < 36) //test this number
+	    			if (ultraDistance < 48) //test this number
 	    			{
 	   					autoStep = 2; 
 	   					autoTimer.reset(); 
 	   	    			autoTimer.start();
+	   	    			System.out.println("going to 2");
 	    			}
 	    			break;
 	    		}
@@ -254,11 +468,12 @@ public class Robot extends IterativeRobot {
 	    			if (autoTimer.get()>0.2)
 	    			{
 	    				ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    				if (ultraDistance > 36)//test this number
+	    				if (ultraDistance > 48)//test this number
 	    				{
 	    					autoTimer.reset();
 	    					autoTimer.start();
-	    					autoStep = 3; 
+	    					autoStep = 3;
+	    					System.out.println("going to 3");
 	    				}
 	    			}
 	    			break; 
@@ -266,11 +481,12 @@ public class Robot extends IterativeRobot {
 	    		
     			case 3: //goes forward for time so it is over the low bar
 	    		{
-	    			if (autoTimer.get() > 0.15)
+	    			if (autoTimer.get() > 0.2)
 	    			{
 	    				autoStep = 4; 
 	    				gPid.disable();
 	    				myRobot.drive(0, 0); //hold the position - stay
+	    				System.out.println("going to 4");
 	    			}
 	    			break; 
 	    		}
@@ -279,17 +495,24 @@ public class Robot extends IterativeRobot {
     			case 4: // turns to 180 degrees 
 	    		{
 	    			if (gyro.getAngle()<180)
-	    				myRobot.drive(0.3, 1);
+	    			{
+	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
+	    			
+	    			}
 	    			else 
 	    				autoStep = 5; 
+	    			
+	    			break; 
 	    		}
     		
     			case 5: // turns slowly back 
 	    		{
 	    			if (gyro.getAngle()>=180)
-	    				myRobot.drive(0.15, -1);
+	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
 	    			else 
 	    				autoStep = 6; 
+	    			
+	    			break;
 	    		}
     		
     			case 6: //uses a PID to start to go forward
@@ -298,18 +521,21 @@ public class Robot extends IterativeRobot {
 	    			tPower = 0.3; 
 	    			gPid.enable();
 	    			autoStep=7; 
+	    			
+	    			break;
 	    		}
     		
     		   	    
     			case 7: // waits until the ultrasonic reads the right distance
 	    		{
 	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (ultraGoTo (72, ultrasonic, true) == 1)
+	    			if (ultraGoTo (68, ultrasonic, true) == 1)
 	    			{
 	    				gPid.disable();
 	    				autoStep = 8; 
 	    			}
 	    			
+	    			break;
 	    		}
     	    
     			case 8: //uses a PID to go backwards
@@ -317,42 +543,50 @@ public class Robot extends IterativeRobot {
 	    	    	tPower = -0.3; 
 	    	    	gPid.enable();
 	    	    	autoStep = 9;  
+	    	    	break;
 	    	    }
     	    
     			case 9: // goes backwards until back at the ultrasonic threshold 
 	    	    {
 	    	    	adjustArmHeight(SHOOTHEIGHT); 
-	    	    	if (ultraGoTo (72, ultrasonic, true) == 2)
+	    	    	if (ultraGoTo (68, ultrasonic, true) == 2)
 	    	    	{
 	    	    		gPid.disable();
 	    	    		autoStep = 10; 
 	    	    	}
+	    	    	break;
 	    	    }
 	    	    
     			case 10: // turns to 225 degrees 
 	    		{
 	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (gyro.getAngle()<225) //test this angle
-	    				myRobot.drive(0.3, 1);
+	    			if (gyro.getAngle()<298.36) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
 	    			else 
 	    				autoStep = 11; 
+	    			
+	    			break;
 	    		}
     		
     			case 11: // turns slowly back 
 	    		{
-	    			if (gyro.getAngle()>=225) //test this angle
-	    				myRobot.drive(0.15, -1);
+	    			if (gyro.getAngle()>=298.36) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
 	    			else 
 	    				autoStep = 12; 
+	    			
+	    			break;
 	    		}
     		
     			case 12: //uses a PID to start to go forward
 	    		{
 	    			myRobot.drive(0, 0);
-	    			/*gPid.setSetpoint(225); //test this angle
+	    			gPid.setSetpoint(225); //test this angle
 	    			tPower = 0.3; 
 	    			gPid.enable();
-	    			autoStep=13; */
+	    			autoStep=13; 
+	    			
+	    			break;
 	    		}
 	    		
     			case 13: //stop at the goal, not exactly sure how this will know when to stop 
@@ -362,7 +596,8 @@ public class Robot extends IterativeRobot {
     				autoTimer.reset();
     				autoTimer.start();
     				autoStep = 14;
-    						
+    					
+    				break;
     			}
     				
     			case 14: //shoot
@@ -373,10 +608,12 @@ public class Robot extends IterativeRobot {
     				}
     				
     				else 
-    					autoStep = 15; 
+    					autoStep = 15;
+    				
+    				break;
     			}
     		}
-    	}
+    	}*/
     			
     	    
     	    
@@ -515,6 +752,7 @@ public class Robot extends IterativeRobot {
     				startCalibration(); 
     				myRobot.drive(0, 0);
     				intake.drive(0, 0);
+    				break;
     			}
     		}
     			
@@ -529,7 +767,9 @@ public class Robot extends IterativeRobot {
     	if (defense.equals("spy"))
     		
     	{
-    		switch(autoStep)
+    		System.out.println("Ultrasonic: " + (inchFromLV(ultrasonic2.getVoltage())));
+    		
+    		/*switch(autoStep)
     		{ 
     			case 0: //start the PID to go straight
     			{
@@ -571,7 +811,8 @@ public class Robot extends IterativeRobot {
 	    		{
 	    			myRobot.drive(0, 0);
 	    			intake.drive(0, 0);
-	    		}
+	    			break;
+	    		}*/
     			
     	}
     	
@@ -579,50 +820,44 @@ public class Robot extends IterativeRobot {
     	{
     		switch(autoStep)
     		{ 
-    			case 0: //start the PID to go straight
-    			{
-	    		   	tPower = -0.2;
-	    			gPid.setSetpoint(0);
-	    			gPid.enable();
-	    			autoStep = 1;
-	    			break; 
-    			}
-    			
-    			case 1:  //goes forward until sees wall on the side
-    			{
-	    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(LOWBARHEIGHT); 
-	    			
-	    			if (ultraDistance < 36) //test this number
+	    		case 0: //start the PID to go straight
+				{
+				   	tPower = 0.3;
+					gPid.setSetpoint(0);
+					gPid.enable();
+					autoStep = 1; 
+					System.out.println("going to 1");
+					autoTimer.reset();
+   					autoTimer.start();
+					break; 
+				}
+		    	
+		    	case 1:
+				{
+	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
+	    				    			
+	    			if (autoTimer.get()>0.75) //test this number
 	    			{
 	   					autoStep = 2; 
-	   					autoTimer.reset(); 
-	   	    			autoTimer.start();
+	   					System.out.println("going to 2");
+	   					
 	    			}
 	    			break;
 	    		}
-    			
-	    		
-    			case 2: //goes forward for time so it is over the low bar
-	    		{
-	    			if (autoTimer.get() > 1)
-	    			{
-	    				autoStep = 3; 
-	    				gPid.disable();
-	    				myRobot.drive(0, 0); //hold the position - stay
-	  
-	    			}
-	    			break; 
-	    		}
+				
+		    	case 2:
+		    	{
+		    		tPower = 0.175; 
+		    			
+		    		
+		    	}
+			
     		}
     			
     	}
     }
-
-    	
-   }
-    	
-    	
+   
+	
     
     /*
      * This function is called once each time the robot enters tele-operated mode*/
@@ -631,7 +866,9 @@ public class Robot extends IterativeRobot {
     public void teleopInit()
     {
    
-    	/*if (gPid != null) gPid.disable();*/
+    	if (gPid.isEnabled())
+    	 	 gPid.disable(); 
+    	
     	myRobot.drive(0, 0);
     	myRobot.setSafetyEnabled(false);
     	autoStep=0; 
@@ -671,11 +908,11 @@ public class Robot extends IterativeRobot {
     
     public void teleopPeriodic() 
     {
+    	System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage()))+ "\tUltrasonicLV: " + (inchFromLV(ultrasonic2.getVoltage())) + "\tGyro: " + gyro.getAngle());
     	
     	if (isCalibrating)
     		checkCalibrationStatus(); 
-  	
-    	System.out.println("Encoder Position: " + armR.getPosition()); 
+  	   	
     	TeleopFunctions chosen; 
     	int currentPosition = armR.getEncPosition();
     	System.out.println(currentPosition);
@@ -830,6 +1067,7 @@ public class Robot extends IterativeRobot {
      */
     public void testPeriodic() {
     	LiveWindow.run();
+		System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage()))+ "\tGyro: " + gyro.getAngle());
     } //End Test Periodic 
     
     public void startCalibration()
@@ -839,19 +1077,19 @@ public class Robot extends IterativeRobot {
     	armR.changeControlMode(TalonControlMode.PercentVbus);
     	lastPosition = armR.getPosition();
     	calTimer.start();
-    	armR.set(0.3);
+    	armR.set(0.6);
     	
     }
     
     public boolean checkCalibrationStatus()
     {
     	double timerVal = calTimer.get();
-    	System.out.println("calTimer:" + timerVal);
+/*    	System.out.println("calTimer:" + timerVal);*/
     	if (timerVal<0.5)
     		return false; 
     	
 		double newPosition = armR.getPosition(); 
-		System.out.println("cDelta:" + (newPosition-lastPosition));
+		/*System.out.println("cDelta:" + (newPosition-lastPosition));*/
 	
 		
 		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>10) 
@@ -931,14 +1169,13 @@ public class Robot extends IterativeRobot {
     //returns 2 if it is done doing its thing
     public int ultraGoTo (double distance, AnalogInput ultra, boolean HRLV)
     { 
-    	 	
-    	    	
+    	 	    	    	
     	if (HRLV)
     		ultraVal = inchFromHRLV(ultra.getVoltage()); 
     	else 
     		ultraVal = inchFromLV(ultra.getVoltage()); 
     	
-    	System.out.println("Current Ultra View: " + ultraVal);
+    	/*System.out.println("Current Ultra View: " + ultraVal);*/
     	
     	if (!seenOnce)
     	{ 
@@ -963,7 +1200,6 @@ public class Robot extends IterativeRobot {
     		
     		else 
     		{
-    			myRobot.drive(0, 0);
     			seenOnce = false; 
     			return 2; 
     		}
@@ -1035,8 +1271,8 @@ public class Robot extends IterativeRobot {
 	    	double scaled = output*0.1;
 	    	
 	    	myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
-	    	System.out.println("Left wheel: " + (-(tPower+scaled)));
-	    	System.out.println("Right wheel: " + (-(tPower-scaled)));
+	    	/*System.out.println("Left wheel: " + (-(tPower+scaled)));
+	    	System.out.println("Right wheel: " + (-(tPower-scaled)));*/
 	    	timesLoop++; 
 	    	
 	    		    
@@ -1076,7 +1312,7 @@ public class Robot extends IterativeRobot {
     	   */
     	  public double pidGet()
     	  {
-    		  System.out.println(gyro.getAngle());
+    		  /*System.out.println(gyro.getAngle());*/
     		  return gyro.getAngle();
     		  
     		  
