@@ -42,7 +42,6 @@ public class Robot extends IterativeRobot {
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic;
 	AnalogInput ultrasonic2; 
-    public int timesLoop = 0; 
     int cameraID = 0; 
 	public static USBCamera cameraFront;
 	public static USBCamera cameraBack;
@@ -177,7 +176,6 @@ public class Robot extends IterativeRobot {
   	    System.out.println("We have reset gyro"); 
 
     	
-    	timesLoop=0; 
   		autoStep = 0; 
   		
   		defense = chooser.getSelected().toString();
@@ -262,6 +260,7 @@ public class Robot extends IterativeRobot {
 	    			{
 	   					autoStep = 2; 
 	   					System.out.println("going to 2");
+	   					//dont think this reset does anything
 	   					autoTimer.reset();
 	    			}
 	    			break;
@@ -270,6 +269,7 @@ public class Robot extends IterativeRobot {
 		    	case 2:
 		    	{ 
 		    		ultraDistance = inchFromHRLV(ultrasonic.getAverageVoltage()); 
+		    		//150 may be bigger than necessary - are there 12.5feet to wall after low bar?
 		    		if (ultraDistance > 150)
 		    		{
 		    			autoTimer.reset();
@@ -285,6 +285,7 @@ public class Robot extends IterativeRobot {
 		    	case 3: 
 		    	{
 		    		ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
+		    		//is this long enough?
 		    		if (autoTimer.get() > 0.3)
 		    		{
 		    			if (ultraDistance > 100)
@@ -310,8 +311,8 @@ public class Robot extends IterativeRobot {
 	    			
 	    			if (ultraDistance < 68)
 	    			{
-	    				gPid.disable();
-	    				myRobot.drive(0,  0);
+	    				gPid.reset(); //changed to reset
+	    				myRobot.drive(-.01,  0); //added the -0.01 power
 	    				autoStep = 5; 
 	    				System.out.println(ultraDistance); 
 	    				System.out.println("going to 5");
@@ -426,273 +427,22 @@ public class Robot extends IterativeRobot {
 				{
 					myRobot.setLeftRightMotorOutputs(0,0);
 					intake.drive(0, 0);
-					gPid.disable();
+					gPid.reset(); //added 3-3
+					autoStep = 14; 
 					break; 
+				}
+				
+				//added 3-3
+				case 14: 
+				{
+					myRobot.setLeftRightMotorOutputs(0, 0);
+					intake.drive(0, 0);
+					break;
 				}
 			    		
 	    	}
     	}
-    /*	if (defense.equals("lowbar"))
-    	{
-    		switch(autoStep)
-    		{ 
-    			
-    			case 0: //start the PID to go straight
-    			{
-	    		   	tPower = -0.25;
-	    			gPid.setSetpoint(0);
-	    			gPid.enable();
-	    			autoStep = 1; 
-	    			System.out.println("going to 1");
-	    			adjustArmHeight(LOWBARHEIGHT); 
-	    			break; 
-    			}
-    			
-    			case 1:  //goes forward until sees wall on the side
-    			{
-	    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(LOWBARHEIGHT);
-	    			
-	    			if (ultraDistance < 48) //test this number
-	    			{
-	   					autoStep = 2; 
-	   					autoTimer.reset(); 
-	   	    			autoTimer.start();
-	   	    			System.out.println("going to 2");
-	    			}
-	    			break;
-	    		}
-    			
-    			case 2: //goes forward for time then goes forward until no more wall on side
-	    		{
-	    			if (autoTimer.get()>0.2)
-	    			{
-	    				ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    				if (ultraDistance > 48)//test this number
-	    				{
-	    					autoTimer.reset();
-	    					autoTimer.start();
-	    					autoStep = 3;
-	    					System.out.println("going to 3");
-	    				}
-	    			}
-	    			break; 
-	    		}
-	    		
-    			case 3: //goes forward for time so it is over the low bar
-	    		{
-	    			if (autoTimer.get() > 0.2)
-	    			{
-	    				autoStep = 4; 
-	    				gPid.disable();
-	    				myRobot.drive(0, 0); //hold the position - stay
-	    				System.out.println("going to 4");
-	    			}
-	    			break; 
-	    		}
-    			
-    		
-    			case 4: // turns to 180 degrees 
-	    		{
-	    			if (gyro.getAngle()<180)
-	    			{
-	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
-	    			
-	    			}
-	    			else 
-	    				autoStep = 5; 
-	    			
-	    			break; 
-	    		}
-    		
-    			case 5: // turns slowly back 
-	    		{
-	    			if (gyro.getAngle()>=180)
-	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
-	    			else 
-	    				autoStep = 6; 
-	    			
-	    			break;
-	    		}
-    		
-    			case 6: //uses a PID to start to go forward
-	    		{
-	    			gPid.setSetpoint(180);
-	    			tPower = 0.3; 
-	    			gPid.enable();
-	    			autoStep=7; 
-	    			
-	    			break;
-	    		}
-    		
-    		   	    
-    			case 7: // waits until the ultrasonic reads the right distance
-	    		{
-	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (ultraGoTo (68, ultrasonic, true) == 1)
-	    			{
-	    				gPid.disable();
-	    				autoStep = 8; 
-	    			}
-	    			
-	    			break;
-	    		}
-    	    
-    			case 8: //uses a PID to go backwards
-	    	    {
-	    	    	tPower = -0.3; 
-	    	    	gPid.enable();
-	    	    	autoStep = 9;  
-	    	    	break;
-	    	    }
-    	    
-    			case 9: // goes backwards until back at the ultrasonic threshold 
-	    	    {
-	    	    	adjustArmHeight(SHOOTHEIGHT); 
-	    	    	if (ultraGoTo (68, ultrasonic, true) == 2)
-	    	    	{
-	    	    		gPid.disable();
-	    	    		autoStep = 10; 
-	    	    	}
-	    	    	break;
-	    	    }
-	    	    
-    			case 10: // turns to 225 degrees 
-	    		{
-	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (gyro.getAngle()<298.36) //test this angle
-	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
-	    			else 
-	    				autoStep = 11; 
-	    			
-	    			break;
-	    		}
-    		
-    			case 11: // turns slowly back 
-	    		{
-	    			if (gyro.getAngle()>=298.36) //test this angle
-	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
-	    			else 
-	    				autoStep = 12; 
-	    			
-	    			break;
-	    		}
-    		
-    			case 12: //uses a PID to start to go forward
-	    		{
-	    			myRobot.drive(0, 0);
-	    			gPid.setSetpoint(225); //test this angle
-	    			tPower = 0.3; 
-	    			gPid.enable();
-	    			autoStep=13; 
-	    			
-	    			break;
-	    		}
-	    		
-    			case 13: //stop at the goal, not exactly sure how this will know when to stop 
-    			{
-    				//if (at the distance)
-    				
-    				autoTimer.reset();
-    				autoTimer.start();
-    				autoStep = 14;
-    					
-    				break;
-    			}
-    				
-    			case 14: //shoot
-    			{
-    				if (autoTimer.get() < 1)
-    				{
-    					intake.drive(1, 0);
-    				}
-    				
-    				else 
-    					autoStep = 15;
-    				
-    				break;
-    			}
-    		}
-    	}*/
-    			
-    	    
-    	    
-    	/*if (defense.equals("lowbar"))
-    	{
-    		if (autoStep == 0)
-    		{
-    			gPid.enable();
-    			autoStep = 1; 
-    		}
-    		
-    		if (autoStep == 1)
-    		{
-    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-    			adjustArmHeight(LOWBARHEIGHT); 
-    			
-    			if (ultraDistance < 36) //test this number
-    			{
-   					autoStep = 2; 
-   					autoTimer.reset(); 
-   	    			autoTimer.start();
-    			}
-    			
-    		if (autoStep == 2)
-    		{
-    			if (autoTimer.get()>0.2)
-    			{
-    				ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-    				if (ultraDistance > 36)
-    				{
-    					autoTimer.reset();
-    					autoTimer.start();
-    					autoStep = 3; 
-    				}
-    			}
-    		}
-    		
-    		if (autoStep == 3)
-    		{
-    			if (autoTimer.get() > 0.15)
-    			{
-    				autoStep = 4; 
-    				gPid.disable();
-    				myRobot.drive(0, 0); //hold the position - stay
-    				
-    			
-    		}*/
-    		/*
-    		if (autoStep == 4)
-    		{
-    			gPid.setSetpoint(180);
-    			gPid.enable();
-    			autoStep=5; 
-    		}
-    		
-    		if (autoStep == 5)
-    		{
-    			if (ultraGoTo (72, ultrasonic, true, -0.3, -0.125)) 
-    			{
-    				autoStep = 6; 
-    				myRobot.drive(0, 0);
-    			}
-    			
-    			 
-    		}*/
-    		
-    	
-    		// gyro forward 
-    		//use ultrasonic to see when on defense 
-    		// use sonar to see when over the defense
-    		// drive forward
-    		//use sonar to know when to stop
-    		//use gyro to turn
-    		// drive forward
-    		//use sonar and/or run in to castle
-    		//shoot
-    		//stay
-    	
-    	
+       	
     	
     	if (defense.equals("rockwall") || defense.equals("moat") || defense.equals("ramparts") || defense.equals("rough"))
     	{
@@ -866,7 +616,7 @@ public class Robot extends IterativeRobot {
     public void teleopInit()
     {
    
-    	if (gPid.isEnabled())
+    	if (gPid != null && gPid.isEnabled())
     	 	 gPid.disable(); 
     	
     	myRobot.drive(0, 0);
@@ -1270,10 +1020,11 @@ public class Robot extends IterativeRobot {
 	
 	    	double scaled = output*0.1;
 	    	
-	    	myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
+	    	if(gPid.isEnabled())//this if was added 3-3
+	    		myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
+	    	
 	    	/*System.out.println("Left wheel: " + (-(tPower+scaled)));
 	    	System.out.println("Right wheel: " + (-(tPower-scaled)));*/
-	    	timesLoop++; 
 	    	
 	    		    
 	    }
