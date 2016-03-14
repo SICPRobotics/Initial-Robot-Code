@@ -56,6 +56,11 @@ public class Robot extends IterativeRobot {
 	boolean isCalibrating = false; 
     double lastPosition; 
     Timer calTimer = new Timer(); 
+    
+    boolean isTurning = false; 
+	boolean	isTurned = false;
+	boolean turnBack = false; 
+	double holdPosition = 180; 
    
     
 	double tPower; 
@@ -662,6 +667,9 @@ public class Robot extends IterativeRobot {
     	
     	if (isCalibrating)
     		checkCalibrationStatus(); 
+    	
+    	if (isTurning)
+    		checkTurningStatus(); 
   	   	
     	TeleopFunctions chosen; 
     	int currentPosition = armR.getEncPosition();
@@ -717,11 +725,14 @@ public class Robot extends IterativeRobot {
     		while(stickx.getRawButton(5));
     	}
     	
+    	if(stickj.getRawButton(2))
+    		startTurning();
+    	
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
 			
-       	if (stickj.getRawButton(2))
+       	if (stickj.getRawButton(3)) //changed 3.14 from button 2 to button 3
        	{  	     		
        		
         	inverted=!inverted; 
@@ -862,6 +873,49 @@ public class Robot extends IterativeRobot {
     	return false;  
     } 
     
+    public void startTurning()
+    {
+    	/*gyro.reset();
+    	isTurning=true; 
+    	isTurned = false; 
+    	holdPosition = gyro.getAngle()+180; //theoretically should be 180
+    	myRobot.setLeftRightMotorOutputs(-0.5, 0.5);*/
+    	
+    }
+    
+ 
+    
+    public boolean checkTurningStatus()
+    {
+    	    	
+		/*double newPosition = gyro.getAngle(); 
+		
+		myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
+		
+		if (turnBack)
+		{
+			myRobot.setLeftRightMotorOutputs(0.5, -0.5);
+			if (Math.abs(newPosition-holdPosition)<2)
+			{
+				isTurning = false; 
+				isTurned = true; 
+				turnBack = false; 
+				return true; 
+			}
+		}
+		
+		
+		else if (Math.abs(newPosition-holdPosition)<4) 
+		{
+			turnBack = true; 			
+		}
+		*/
+		
+    	return false;  
+    } 
+
+       
+    
     public void adjustArmHeight (double height)
     {
     	if (isCalibrated)
@@ -894,26 +948,6 @@ public class Robot extends IterativeRobot {
     }
     
 
-    public boolean turn (double angle, boolean right)
-    {
-    
-    	
-    	if (gyro.getAngle()<angle+2)
-    	{
-    		myRobot.drive(0.2, 1);
-    		return false; 
-    	}
-    	
-    	else if (gyro.getAngle()>angle-2)
-    	{
-    		myRobot.drive(0.2, 1);
-    		return false; 
-    	}
-    	
-    	else 
-    		return true; 
-    }
-    
     //returns 0 if it has not gotten to the right distnace
     //returns 1 if it has seen it once and needs to go backwards
     //returns 2 if it is done doing its thing
