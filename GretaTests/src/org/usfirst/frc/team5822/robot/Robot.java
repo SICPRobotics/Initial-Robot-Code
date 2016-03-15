@@ -691,6 +691,9 @@ public class Robot extends IterativeRobot {
     	moveValue = moveValue*scale; 
     	rotateValue = rotateValue*scale; 
     	
+    	if (rotateValue > 0)
+    		isTurning = false; 
+    	
     	
     	myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
     	
@@ -728,6 +731,9 @@ public class Robot extends IterativeRobot {
     	if(stickj.getRawButton(2))
     		startTurning();
     	
+    	if (stickj.getRawButton(5)) // see if Jack likes this button 
+    		isTurning = false; 
+    	
 		activeCamera.getImage(img);
 		
 		server.setImage(img); // puts image on the dashboard
@@ -745,7 +751,7 @@ public class Robot extends IterativeRobot {
        	}
        	
         //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
-      
+      //angela was here
       	chosen = TeleopFunctions.NONE;     	
     	
         //Y is for the calibration 
@@ -875,11 +881,11 @@ public class Robot extends IterativeRobot {
     
     public void startTurning()
     {
-    	/*gyro.reset();
+    	gyro.reset();
     	isTurning=true; 
     	isTurned = false; 
     	holdPosition = gyro.getAngle()+180; //theoretically should be 180
-    	myRobot.setLeftRightMotorOutputs(-0.5, 0.5);*/
+    	myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
     	
     }
     
@@ -888,14 +894,12 @@ public class Robot extends IterativeRobot {
     public boolean checkTurningStatus()
     {
     	    	
-		/*double newPosition = gyro.getAngle(); 
-		
-		myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
+		double newPosition = gyro.getAngle(); 
 		
 		if (turnBack)
 		{
-			myRobot.setLeftRightMotorOutputs(0.5, -0.5);
-			if (Math.abs(newPosition-holdPosition)<2)
+			myRobot.setLeftRightMotorOutputs(0.2, -0.2);
+			if (holdPosition > newPosition)
 			{
 				isTurning = false; 
 				isTurned = true; 
@@ -904,12 +908,19 @@ public class Robot extends IterativeRobot {
 			}
 		}
 		
-		
-		else if (Math.abs(newPosition-holdPosition)<4) 
+		else 
 		{
-			turnBack = true; 			
+			myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
+			
+			if (newPosition > holdPosition) 
+			{
+				turnBack = true; 
+				
+			}
 		}
-		*/
+		
+		
+		
 		
     	return false;  
     } 
