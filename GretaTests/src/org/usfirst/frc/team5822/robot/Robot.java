@@ -42,9 +42,9 @@ public class Robot extends IterativeRobot {
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic;
 	AnalogInput ultrasonic2; 
-    int cameraID = 0; 
+    int cameraID = 1; 
 	public static USBCamera cameraFront;
-	public static USBCamera cameraBack;
+/*	public static USBCamera cameraBack;*/
 	public static USBCamera activeCamera; 
 	
 	int turnCount;
@@ -74,6 +74,7 @@ public class Robot extends IterativeRobot {
 	
 	private final int INTAKEHEIGHT = -69000; 
 	private final int LOWBARHEIGHT = -62000; 
+	private final int LOWBARFORWARDHEIGHT = -60000; 
 	private final int SHOOTHEIGHT = -54000; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 
@@ -97,10 +98,10 @@ public class Robot extends IterativeRobot {
     	
 		server = CameraServer.getInstance();
         server.setQuality(25);
-		cameraFront = new USBCamera("cam0");
-		cameraBack = new USBCamera("cam1");
+		cameraFront = new USBCamera("cam1"); //changed from cam0 3-17
+/*		cameraBack = new USBCamera("cam1");*/
 		cameraFront.openCamera();
-		cameraBack.openCamera();
+/*		cameraBack.openCamera();*/
 		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
 		
 		activeCamera = cameraFront; 
@@ -143,12 +144,10 @@ public class Robot extends IterativeRobot {
     	chooser = new SendableChooser();
     	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
     	chooser.addDefault("Low Bar", "lowbar");
-    	chooser.addObject("Ramparts", "ramparts");
-    	chooser.addObject("Moat", "moat");
-    	chooser.addObject("Rough Terrain", "rough");
-    	chooser.addObject("Rock Wall", "rockwall");
-    	chooser.addObject("Spy Bot", "spy");
+
     	chooser.addObject("Reach Defense", "reach");
+    	
+    	
 
     	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
     	
@@ -188,16 +187,6 @@ public class Robot extends IterativeRobot {
    
   		if (defense.equals("lowbar")) {
   			System.out.println("RUNNING LOW BAR");
-  		} else if (defense.equals("ramparts")) {
-  			System.out.println("RUNNING RAMPARTS");
-  		} else if (defense.equals("moat")) {
-  			System.out.println("RUNNING MOAT");
-  		} else if (defense.equals("rough")) {
-  			System.out.println("RUNNING ROUGH TERRAIN");
-  		} else if (defense.equals("rockwall")){
-  			System.out.println("RUNNING ROCKWALL");
-  		} else if (defense.equals("spy")){
-  				System.out.println("RUNNING SPY"); 
   		} else if (defense.equals("reach")){
   			System.out.println("RUNNING REACH");
   		}
@@ -219,7 +208,7 @@ public class Robot extends IterativeRobot {
     
     public void autonomousPeriodic() 
     {
-		if (counter++%20 ==0 )
+		if (counter++%1 ==0 )
 			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
 		
 		double ultraDistance; 
@@ -252,14 +241,14 @@ public class Robot extends IterativeRobot {
 					gPid.enable();
 					autoStep = 1; 
 					System.out.println("going to 1");
-					adjustArmHeight(-60000); 
+					adjustArmHeight(-58000); 
 					break; 
 				}
 		    	
 		    	case 1:
     			{
 	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(-60000);
+	    			adjustArmHeight(-58000);
 	    			
 	    			if (ultraDistance < 24) //test this number
 	    			{
@@ -307,6 +296,7 @@ public class Robot extends IterativeRobot {
 		    			}
 		    			
 		    		}
+		    		break;
 		    	}
 		    	
 		   	    
@@ -314,17 +304,32 @@ public class Robot extends IterativeRobot {
 	    		{
 	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
 	    			
-	    			if (ultraDistance < 68)
+	    			if (ultraDistance < 106) //used to be 62
 	    			{
 	    				gPid.reset(); //changed to reset
-	    				myRobot.drive(-.01,  0); //added the -0.01 power
-	    				autoStep = 5; 
+	    				myRobot.drive(0,  0); //added the -0.01 power
+	    				autoStep = 30; 
+	    				tPower = 0.175;
+	    				gPid.enable();
 	    				System.out.println(ultraDistance); 
 	    				System.out.println("going to 5");
 	    			}
 	    			
 	    			break;
 	    		}
+	    		
+				case 30: 
+				{
+					ultraDistance = inchFromHRLV(ultrasonic.getVoltage());
+					
+					if (ultraDistance < 94) //changed by adding 33
+					{
+						gPid.reset();
+						myRobot.drive(0, 0);
+						autoStep = 5; 						
+					}
+					break;
+				}
 		    
 				case 5: //uses a PID to go backwards
 	    	    {
@@ -339,10 +344,11 @@ public class Robot extends IterativeRobot {
 	    	    {
 	    	    	ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
 	    	    	
-	    	    	if (ultraDistance >= 68)
+	    	    	if (ultraDistance >= 94)
 	    	    	{
 	    	    		System.out.println(ultraDistance);
 	    	    		gPid.disable();
+	    	    		myRobot.setLeftRightMotorOutputs(0,0);
 	    	    		autoStep = 7; 
 	    	    		System.out.println("going to 7");
 	    	    	}
@@ -352,12 +358,13 @@ public class Robot extends IterativeRobot {
 				case 7: 
 	    		{
 	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (gyro.getAngle()< 58.1) //test this angle
-	    				myRobot.setLeftRightMotorOutputs(-0.2,0.2);
+	    			if (gyro.getAngle()< 58) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(-0.3,0.3);
 	    			else 
 	    			{
 	    				autoStep = 8; 
 	    				System.out.println("going to 8");
+	    				myRobot.setLeftRightMotorOutputs(0,0);
 	    			}
 	    			
 	    			break;
@@ -365,8 +372,8 @@ public class Robot extends IterativeRobot {
 			
 				case 8: // turns slowly back 
 	    		{
-	    			if (gyro.getAngle() >= 58.1) //test this angle
-	    				myRobot.setLeftRightMotorOutputs(0.2,-0.2);
+	    			if (gyro.getAngle() >= 58) //test this angle
+	    				myRobot.setLeftRightMotorOutputs(0.17,-0.17);
 	    			else 
 	    			{
 	    				autoStep = 9; 
@@ -379,7 +386,7 @@ public class Robot extends IterativeRobot {
 				case 9: //uses a PID to start to go forward
 	    		{
 	    			myRobot.drive(0, 0);
-	    			gPid.setSetpoint(58.1); //test this angle
+	    			gPid.setSetpoint(55); //test this angle
 	    			tPower = 0.25; 
 	    			gPid.enable();
 	    			autoStep=10; 
@@ -403,7 +410,7 @@ public class Robot extends IterativeRobot {
 				case 11: //shoot
 				{
 									
-					if (autoTimer.get() > 1.5) //change num
+					if (autoTimer.get() > 2) //change num
 					{
 						gPid.disable();
 						myRobot.setLeftRightMotorOutputs(0,0);
@@ -416,7 +423,7 @@ public class Robot extends IterativeRobot {
 				
 				case 12: 
 				{
-					intake.setLeftRightMotorOutputs(-1, -1);					
+					/*intake.setLeftRightMotorOutputs(-1, -1);*/					
 					
 					if (autoTimer.get()>3)  
 					{
@@ -431,7 +438,7 @@ public class Robot extends IterativeRobot {
 				case 13: 
 				{
 					myRobot.setLeftRightMotorOutputs(0,0);
-					intake.drive(0, 0);
+				/*	intake.drive(0, 0);*/
 					gPid.reset(); //added 3-3
 					autoStep = 14; 
 					break; 
@@ -441,136 +448,14 @@ public class Robot extends IterativeRobot {
 				case 14: 
 				{
 					myRobot.setLeftRightMotorOutputs(0, 0);
-					intake.drive(0, 0);
+					/*intake.drive(0, 0);*/
 					break;
 				}
 			    		
 	    	}
     	}
        	
-    	
-    	if (defense.equals("rockwall") || defense.equals("moat") || defense.equals("ramparts") || defense.equals("rough"))
-    	{
-    		switch(autoStep)
-    		{ 
-    			case 0: //start the PID to go straight
-    			{
-	    		   	tPower = -1;
-	    			gPid.setSetpoint(0);
-	    			gPid.enable();
-	    			autoStep = 1;
-	    			break; 
-    			}
-    			
-    			case 1:  //goes forward until sees wall on the side
-    			{
-	    			ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    				    			
-	    			if (ultraDistance < 36) //test this number
-	    			{
-	   					autoStep = 2; 
-	   					autoTimer.reset(); 
-	   	    			autoTimer.start();
-	    			}
-	    			break;
-	    		}
-    			
-    			case 2: //goes forward for time then goes forward until no more wall on side
-	    		{
-	    			if (autoTimer.get()>0.2)
-	    			{
-	    				ultraDistance = inchFromLV(ultrasonic2.getVoltage()); //use sonar to figure out when there
-	    				if (ultraDistance > 36)//test this number
-	    				{
-	    					autoTimer.reset();
-	    					autoTimer.start();
-	    					autoStep = 3; 
-	    				}
-	    			}
-	    			break; 
-	    		}
-	    		
-    				    		
-    			case 3: //goes forward for time so it is over the low bar
-	    		{
-	    			if (autoTimer.get() > 0.1)
-	    			{
-	    				autoStep = 4; 
-	    				gPid.disable();
-	    				myRobot.drive(0, 0); //hold the position - stay
-	    			}
-	    			break; 
-	    		}
-	    		
-    			case 4: 
-    			{
-    				startCalibration(); 
-    				myRobot.drive(0, 0);
-    				intake.drive(0, 0);
-    				break;
-    			}
-    		}
-    			
-    		
-    		
-    		// go fast forward 
-    		// use sonar to see where it is 
-    		// gun it 
-    		// use sonar to see when the wall steadily approaches - stop 
-    	}
-    		
-    	if (defense.equals("spy"))
-    		
-    	{
-    		System.out.println("Ultrasonic: " + (inchFromLV(ultrasonic2.getVoltage())));
-    		
-    		/*switch(autoStep)
-    		{ 
-    			case 0: //start the PID to go straight
-    			{
-	    		   	tPower = 0.3;
-	    			gPid.setSetpoint(0);
-	    			gPid.enable();
-	    			autoStep = 1;
-	    			break; 
-    			}
-    			
-    			case 1:  //goes forward until sees castle
-    			{
-	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			
-	    			if (ultraDistance < 36) //test this number
-	    			{
-	   					autoStep = 2; 
-	   					myRobot.drive(0, 0);
-	   					autoTimer.reset();
-	   					autoTimer.start();
-	   				}
-	    			break;
-	    		}
-    			
-    			case 2: //goes forward for time then goes forward until no more wall on side
-	    		{
-	    			if (autoTimer.get()<1)
-	    			{
-	    				intake.drive(1, 0);
-	    			}
-	    			
-	    			else
-	    				autoStep = 3; 
-	    			break; 
-	    		}
-	    		
-    			case 3: //goes forward for time so it is over the low bar
-	    		{
-	    			myRobot.drive(0, 0);
-	    			intake.drive(0, 0);
-	    			break;
-	    		}*/
-    			
-    	}
-    	
+    	    		
     	if (defense.equals("reach"))
     	{
     		switch(autoStep)
@@ -627,7 +512,6 @@ public class Robot extends IterativeRobot {
     	myRobot.drive(0, 0);
     	myRobot.setSafetyEnabled(false);
     	autoStep=0; 
-    	startCalibration();
     	
 
     }
@@ -640,7 +524,7 @@ public class Robot extends IterativeRobot {
     
     public enum TeleopFunctions 
     {
-    	NONE(0), LOWBAR(1), GRABBALL(2), SHOOT(4), RESET(3), HOLD(4); 
+    	NONE(0), LOWBARBACKWARD(1), GRABBALL(2), SHOOT(4), RESET(3), HOLD(4), LOWBARFORWARDS(5); 
     	
     	public final int val; 
     	
@@ -663,13 +547,17 @@ public class Robot extends IterativeRobot {
     
     public void teleopPeriodic() 
     {
-    	System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage()))+ "\tUltrasonicLV: " + (inchFromLV(ultrasonic2.getVoltage())) + "\tGyro: " + gyro.getAngle());
+    	System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage())) + "  Gyro: " + gyro.getAngle());
+    	
     	
     	if (isCalibrating)
     		checkCalibrationStatus(); 
     	
     	if (isTurning)
+    	{
     		checkTurningStatus(); 
+    		return; 
+    	}
   	   	
     	TeleopFunctions chosen; 
     	int currentPosition = armR.getEncPosition();
@@ -695,7 +583,8 @@ public class Robot extends IterativeRobot {
     		isTurning = false; 
     	
     	
-    	myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
+    	if (!isTurning) 
+    		myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
     	
     	double intakeAxis = stickx.getRawAxis(5); 
     	if(Math.abs(intakeAxis)<0.25) 
@@ -703,7 +592,7 @@ public class Robot extends IterativeRobot {
     		
     	intake.drive(intakeAxis, 0);
     	
-    	if(stickj.getRawButton(1))
+    	/*if(stickj.getRawButton(1))
     	{
     		String camR; 
     		
@@ -726,10 +615,13 @@ public class Robot extends IterativeRobot {
     		 
     		
     		while(stickx.getRawButton(5));
-    	}
+    	}*/
     	
-    	if(stickj.getRawButton(2))
-    		startTurning();
+    	if (!isTurning)
+    	{
+	    	if(stickj.getRawButton(2))
+	    		startTurning();
+    	}
     	
     	if (stickj.getRawButton(5)) // see if Jack likes this button 
     		isTurning = false; 
@@ -761,12 +653,13 @@ public class Robot extends IterativeRobot {
 
         //A is for getting the ball to the right place for crossing low bar
         else if (stickx.getRawButton(1)==true)
-        	chosen = TeleopFunctions.LOWBAR; 
+        	chosen = TeleopFunctions.LOWBARBACKWARD; 
         
   
        //X is for shooting 
-        else if (stickx.getRawButton(4)==true)
+        else if (stickx.getRawButton(5)==true)
             chosen = TeleopFunctions.RESET;
+   
         
         //B is for getting the ball to the right place for intake 
         else if (stickx.getRawButton(2)==true)
@@ -775,6 +668,9 @@ public class Robot extends IterativeRobot {
         //Upper Right Button is for holding the intake arm in its place
         else if (stickx.getRawButton(6)==true)
         	chosen = TeleopFunctions.HOLD;
+        
+        else if (stickx.getRawButton(4)== true)
+        	chosen = TeleopFunctions.LOWBARFORWARDS; 
         
            
         switch (chosen)
@@ -790,7 +686,7 @@ public class Robot extends IterativeRobot {
 	        	adjustArmHeight(INTAKEHEIGHT); 
 	        	break;
 	        	
-	        case LOWBAR: 
+	        case LOWBARBACKWARD: 
 	        	adjustArmHeight(LOWBARHEIGHT); 
 	        	break; 
 	        	
@@ -801,6 +697,9 @@ public class Robot extends IterativeRobot {
 	        case HOLD: 
 	        	adjustArmHeight(armR.getPosition()); 
 	        	break; 
+	        	
+	        case LOWBARFORWARDS: 
+	        	adjustArmHeight(LOWBARFORWARDHEIGHT);
         }
         
         if(!isCalibrating&&chosen!=TeleopFunctions.HOLD) {
@@ -823,11 +722,7 @@ public class Robot extends IterativeRobot {
            
     }
     	
-  
-       
-                     
-                
-   		
+  	
     
     /**
      * This function is called periodically during test mode
@@ -844,7 +739,7 @@ public class Robot extends IterativeRobot {
     	armR.changeControlMode(TalonControlMode.PercentVbus);
     	lastPosition = armR.getPosition();
     	calTimer.start();
-    	armR.set(0.6);
+    	armR.set(0.35);
     	
     }
     
@@ -852,7 +747,7 @@ public class Robot extends IterativeRobot {
     {
     	double timerVal = calTimer.get();
 /*    	System.out.println("calTimer:" + timerVal);*/
-    	if (timerVal<0.5)
+    	if (timerVal<0.1)
     		return false; 
     	
 		double newPosition = armR.getPosition(); 
@@ -884,6 +779,7 @@ public class Robot extends IterativeRobot {
     	gyro.reset();
     	isTurning=true; 
     	isTurned = false; 
+    	turnBack = false; 
     	holdPosition = gyro.getAngle()+180; //theoretically should be 180
     	myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
     	
@@ -898,7 +794,7 @@ public class Robot extends IterativeRobot {
 		
 		if (turnBack)
 		{
-			myRobot.setLeftRightMotorOutputs(0.2, -0.2);
+			myRobot.setLeftRightMotorOutputs(0.25, -0.25);
 			if (holdPosition > newPosition)
 			{
 				isTurning = false; 
@@ -910,7 +806,11 @@ public class Robot extends IterativeRobot {
 		
 		else 
 		{
-			myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
+			if (newPosition < 120)
+				myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
+			
+			else  
+				myRobot.setLeftRightMotorOutputs(-0.35, 0.35);
 			
 			if (newPosition > holdPosition) 
 			{
@@ -1115,6 +1015,14 @@ public class Robot extends IterativeRobot {
     	  }
     	}
 
+    // wo fei chang bu xiang ta men, wo jue de ta men zuo dong xi zuo di bu hao. ta men bu ke yi ting de dong wo men. 
+    //ta men de lian shi zuo ta men de ji qi ren dan shi wo men de dui ren zuo wo men de ji qi ren suo yi ta men de 
+    //ji qi ren bi wo men de ji qi ren hao yi dian dian dan shi wo men de dui bi ta men de dui fei chang hao
+    //ta men shi di ba ge, wo men shi di shi jiu ge. wo jue de bu zhen de ying wei ta men bu zuo na ge. wo jue de ta 
+    //men fei chang yue ben. fei chang, fei chang, fei chang bu hao! 
     
+    //ni men de auto code bu ke yi duo hen duo dong xi. wo men fei chang bu xi huan ta men. wo bu xi huan ta men. 
+    
+    //zhi ge fei chang tiao qi. wo men de jia zai ta men de jia de you bian. suo yi mei ge shi hou, wo dei gen ta shuo huo. 
     
 }
