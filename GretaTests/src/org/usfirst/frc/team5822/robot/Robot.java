@@ -31,62 +31,66 @@ import edu.wpi.first.wpilibj.vision.USBCamera;
  * directory.
  */
 public class Robot extends IterativeRobot {
-	SICPRobotDrive myRobot;
-	SICPRobotDrive intake;
-	Joystick stickx;
-	Joystick stickj; 
+	SICPRobotDrive myRobot; //drive train
+	SICPRobotDrive intake; //bag motors at front of ball intake
+	CANTalon armR; //this is the arm that rotates the ball intake
+	
+	Joystick stickx; //xbox
+	Joystick stickj; //joystick
+	
 	int gyroCounter; 
 	double speedCountTest; 
-	double Kp = 0.03; 
+	
 	Timer autoTimer = new Timer();
+	
+	//sensors
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic;
-	AnalogInput ultrasonic2; 
+		
+	//variables for cameras
     int cameraID = 1; 
 	public static USBCamera cameraFront;
-/*	public static USBCamera cameraBack;*/
+/*	public static USBCamera cameraBack;*/  //commented out because this camera's USB broke at CIR
 	public static USBCamera activeCamera; 
+	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
+	CameraServer server;
+	SendableChooser chooser; 
 	
 	int turnCount;
-	
 	boolean inverted; 
-	
 	int autoStep; 
-
+	
+	
+	//variables for arm calibration
 	boolean isCalibrating = false; 
     double lastPosition; 
     Timer calTimer = new Timer(); 
     
+    //variables for gyro turning method
     boolean isTurning = false; 
 	boolean	isTurned = false;
 	boolean turnBack = false; 
 	double holdPosition = 180; 
    
-    
+	//variables for our PID
+	PIDController gPid; 
 	double tPower; 
+	
+	
 	int teleopFunction; 
 	
-	CANTalon armR; //this is the arm that rotates the ball intake
-	
-	Timer teleTimer = new Timer();
-	
-	PIDController gPid; 
-	
+
+	//encoder values for heights for the ball intake	
 	private final int INTAKEHEIGHT = -69000; 
 	private final int LOWBARHEIGHT = -62000; 
 	private final int LOWBARFORWARDHEIGHT = -60000; 
 	private final int SHOOTHEIGHT = -54000; 
-	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
-
 	
-	 CameraServer server;
-	 SendableChooser chooser; 
-
-	 String defense; 
+	//for the sendable chooser
+	String defense; 
 	 
  	//varaibles for the driveto method with the ultrasonic sensor
- 	
-     double ultraVal; 
+ 	 double ultraVal; 
      boolean seenOnce;
 	
 	    
@@ -96,6 +100,8 @@ public class Robot extends IterativeRobot {
      */
 	 public void robotInit() {
     	
+		//camera set up 
+		//everything with the back camera taken out - back camera USB broke at CIR
 		server = CameraServer.getInstance();
         server.setQuality(25);
 		cameraFront = new USBCamera("cam1"); //changed from cam0 3-17
@@ -108,7 +114,7 @@ public class Robot extends IterativeRobot {
        /*the camera name (ex "cam0") can be found through the roborio web interface*/
         server.startAutomaticCapture("cam"+cameraID);  
         
-    	//all motors inverted
+    	//drive train set up and all motors inverted
     	myRobot = new SICPRobotDrive(0, 1, 2, 3);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kFrontLeft, true);
     	myRobot.setInvertedMotor(SICPRobotDrive.MotorType.kRearLeft, true);
@@ -117,45 +123,38 @@ public class Robot extends IterativeRobot {
     	inverted = true; 
     	
     	//sets up intake
-    	
     	intake = new SICPRobotDrive(5, 6);
 	
     	//sets up joysticks
     	stickj = new Joystick(0);  
     	stickx = new Joystick(1); 
     	
-   	
+    	//sets up gyro 
     	gyro = new ADXRS450_Gyro();
     	gyro.calibrate();
     	
+    	//sets up ultrasonic sensors 
     	ultrasonic = new AnalogInput(1);
-    	ultrasonic2 = new AnalogInput(0); 
     	
+    	//sets up the CANTalon that rotates the ball intake
     	armR = new CANTalon(1); 
-    	
     	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
-    
-    	armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
+       	armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
     	armR.reverseSensor(true);
-
     	armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
 
-	    	   	
+	    //sets up SendableChooser for auto code 	   	
     	chooser = new SendableChooser();
     	chooser.initTable(NetworkTable.getTable("Defense Chooser"));
     	chooser.addDefault("Low Bar", "lowbar");
-
     	chooser.addObject("Reach Defense", "reach");
-    	
-    	
-
     	SmartDashboard.putData("Autonomous Defense Chooser", chooser);
     	
     	//varaibles for the driveto method with the ultrasonic sensor
-    	
     	ultraVal = 0; 
         seenOnce = false;
         
+        //sets up variables for PID with the gyro 
   	    double pGain = 0.9;
   	    double iGain = 0.00521135; 
   	    double dGain = 38.834084496; 
@@ -178,13 +177,11 @@ public class Robot extends IterativeRobot {
   	   	System.out.println("We have been through autonomousInit");
   	 	gyro.reset();
   	    System.out.println("We have reset gyro"); 
-
     	
-  		autoStep = 0; 
+  		autoStep = 0; // 
   		
+  		//chooses which auto to run
   		defense = chooser.getSelected().toString();
- 		
-   
   		if (defense.equals("lowbar")) {
   			System.out.println("RUNNING LOW BAR");
   		} else if (defense.equals("reach")){
@@ -192,7 +189,7 @@ public class Robot extends IterativeRobot {
   		}
   		
   		
-  		startCalibration(); 	
+  		startCalibration(); //starts to bring up the ball intake arm	
     }
   	   	   	
     
@@ -212,24 +209,22 @@ public class Robot extends IterativeRobot {
 			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
 		
 		double ultraDistance; 
+		
+		//calibrates the ball intake arm if it is the first time through autonomousPeriodic
     	 if (first)
     	 {	 startCalibration(); 
     	 	first = false; 
     	 	return; 
     	 }  
     	
+    	 //calibration 
     	if (isCalibrating)
     	{
     		checkCalibrationStatus(); 
     		return; 
     	}
     	
-    	/*if (autoStep ==0)
-    	    if (ultraGoTo (24, ultrasonic, true, -0.175, -0.12))
-    	    	autoStep = 1; 
-    	*/
-    	
-    	
+      	    	
     	if (defense.equals("lowbar")) 
     	{
     		switch (autoStep)
@@ -247,10 +242,10 @@ public class Robot extends IterativeRobot {
 		    	
 		    	case 1:
     			{
-	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
-	    			adjustArmHeight(-58000);
+	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //gets sonar reading
+	    			adjustArmHeight(-58000); //puts arm in the right place
 	    			
-	    			if (ultraDistance < 24) //test this number
+	    			if (ultraDistance < 24) //sensor has seen the low bar flaps
 	    			{
 	   					autoStep = 2; 
 	   					System.out.println("going to 2");
@@ -262,9 +257,9 @@ public class Robot extends IterativeRobot {
     			
 		    	case 2:
 		    	{ 
-		    		ultraDistance = inchFromHRLV(ultrasonic.getAverageVoltage()); 
+		    		ultraDistance = inchFromHRLV(ultrasonic.getAverageVoltage()); //gets sonar reading
 		    		//150 may be bigger than necessary - are there 12.5feet to wall after low bar?
-		    		if (ultraDistance > 150)
+		    		if (ultraDistance > 150) 
 		    		{
 		    			autoTimer.reset();
 		    			autoTimer.start();
@@ -282,7 +277,7 @@ public class Robot extends IterativeRobot {
 		    		//is this long enough?
 		    		if (autoTimer.get() > 0.3)
 		    		{
-		    			if (ultraDistance > 100)
+		    			if (ultraDistance > 100) //robot has seen the wall on the other side
 		    			{
 		    				autoTimer.reset();
 		    				System.out.println("going to 4");
@@ -291,8 +286,9 @@ public class Robot extends IterativeRobot {
 		    			
 		    			else 
 		    			{
-		    				autoStep = 2;
-		    				System.out.println("going to 2");
+		    				autoStep = 2; //back to looking for the wall 
+		    				System.out.println("going to 2"); //sensor did not see the wall. This is here incase the robot front tilts up and the sensor sees the ceiling
+		   
 		    			}
 		    			
 		    		}
@@ -303,13 +299,13 @@ public class Robot extends IterativeRobot {
 				case 4: // waits until the ultrasonic reads the right distance
 	    		{
 	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
-	    			
+	    		
 	    			if (ultraDistance < 106) //used to be 62
 	    			{
 	    				gPid.reset(); //changed to reset
 	    				myRobot.drive(0,  0); //added the -0.01 power
 	    				autoStep = 30; 
-	    				tPower = 0.175;
+	    				tPower = 0.175; //slows the robot down so it won't over shoot as much
 	    				gPid.enable();
 	    				System.out.println(ultraDistance); 
 	    				System.out.println("going to 5");
@@ -322,6 +318,7 @@ public class Robot extends IterativeRobot {
 				{
 					ultraDistance = inchFromHRLV(ultrasonic.getVoltage());
 					
+					//this distance still not correct - reason we missed the goal at CIR
 					if (ultraDistance < 94) //changed by adding 33
 					{
 						gPid.reset();
@@ -333,7 +330,7 @@ public class Robot extends IterativeRobot {
 		    
 				case 5: //uses a PID to go backwards
 	    	    {
-	    	    	tPower = -0.175; 
+	    	    	tPower = -0.175; //sets a negative power
 	    	    	gPid.enable();
 	    	    	System.out.println("going to 6");
 	    	    	autoStep = 6;  
@@ -344,6 +341,7 @@ public class Robot extends IterativeRobot {
 	    	    {
 	    	    	ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); 
 	    	    	
+	    	    	//this distance still not correct - reason we missed the goal at CIR
 	    	    	if (ultraDistance >= 94)
 	    	    	{
 	    	    		System.out.println(ultraDistance);
@@ -357,9 +355,11 @@ public class Robot extends IterativeRobot {
 	    	    
 				case 7: 
 	    		{
-	    			adjustArmHeight(SHOOTHEIGHT); 
-	    			if (gyro.getAngle()< 58) //test this angle
+	    			adjustArmHeight(SHOOTHEIGHT); //intake put to the right position to shoot
+	    			
+	    			if (gyro.getAngle()< 58) //this angle looked good at CIR
 	    				myRobot.setLeftRightMotorOutputs(-0.3,0.3);
+	    			
 	    			else 
 	    			{
 	    				autoStep = 8; 
@@ -370,9 +370,9 @@ public class Robot extends IterativeRobot {
 	    			break;
 	    		}
 			
-				case 8: // turns slowly back 
+				case 8: // turns slowly back in case of overshoot 
 	    		{
-	    			if (gyro.getAngle() >= 58) //test this angle
+	    			if (gyro.getAngle() >= 58) 
 	    				myRobot.setLeftRightMotorOutputs(0.17,-0.17);
 	    			else 
 	    			{
@@ -395,9 +395,8 @@ public class Robot extends IterativeRobot {
 	    			break;
 	    		}
 	    		
-				case 10: //stop at the goal, not exactly sure how this will know when to stop 
+				case 10: //starts timer
 				{
-					//if (at the distance)
 					
 					autoTimer.reset();
 					autoTimer.start();
@@ -407,10 +406,10 @@ public class Robot extends IterativeRobot {
 					break;
 				}
 					
-				case 11: //shoot
+				case 11: //drive forward for time
 				{
 									
-					if (autoTimer.get() > 2) //change num
+					if (autoTimer.get() > 2) //test this num
 					{
 						gPid.disable();
 						myRobot.setLeftRightMotorOutputs(0,0);
@@ -421,9 +420,10 @@ public class Robot extends IterativeRobot {
 					break;
 				}
 				
-				case 12: 
+				case 12: //shoot
 				{
-					/*intake.setLeftRightMotorOutputs(-1, -1);*/					
+					//intake commented out for CIR elims so we wouldn't shoot the ball
+					/*intake.setLeftRightMotorOutputs(-1, -1);*/				
 					
 					if (autoTimer.get()>3)  
 					{
@@ -445,7 +445,7 @@ public class Robot extends IterativeRobot {
 				}
 				
 				//added 3-3
-				case 14: 
+				case 14: //stops everything from moving
 				{
 					myRobot.setLeftRightMotorOutputs(0, 0);
 					/*intake.drive(0, 0);*/
@@ -462,7 +462,7 @@ public class Robot extends IterativeRobot {
     		{ 
 	    		case 0: //start the PID to go straight
 				{
-				   	tPower = 0.3;
+				   	tPower = 0.3; //set to higher power
 					gPid.setSetpoint(0);
 					gPid.enable();
 					autoStep = 1; 
@@ -472,10 +472,9 @@ public class Robot extends IterativeRobot {
 					break; 
 				}
 		    	
-		    	case 1:
+		    	case 1: //approaches defense quickly
 				{
-	    			ultraDistance = inchFromHRLV(ultrasonic.getVoltage()); //use sonar to figure out when there
-	    				    			
+	     			
 	    			if (autoTimer.get()>0.75) //test this number
 	    			{
 	   					autoStep = 2; 
@@ -485,11 +484,9 @@ public class Robot extends IterativeRobot {
 	    			break;
 	    		}
 				
-		    	case 2:
+		    	case 2: //continues to drive forward slowly into the defense
 		    	{
-		    		tPower = 0.175; 
-		    			
-		    		
+		    		tPower = 0.175; 			
 		    	}
 			
     		}
@@ -506,22 +503,16 @@ public class Robot extends IterativeRobot {
     public void teleopInit()
     {
    
-    	if (gPid != null && gPid.isEnabled())
+    	if (gPid != null && gPid.isEnabled()) //make sure gPid is disabled 
     	 	 gPid.disable(); 
     	
     	myRobot.drive(0, 0);
     	myRobot.setSafetyEnabled(false);
-    	autoStep=0; 
-    	
-
+    	autoStep=0; //auto sequence counter reset 
     }
 
-    /**
-     * This function is called periodically during operator control
-     */
-    
 
-    
+    //enum for ball intake heights
     public enum TeleopFunctions 
     {
     	NONE(0), LOWBARBACKWARD(1), GRABBALL(2), SHOOT(4), RESET(3), HOLD(4), LOWBARFORWARDS(5); 
@@ -545,14 +536,19 @@ public class Robot extends IterativeRobot {
     int invertCount=1; 
     double voltage2=0; 
     
+    /**
+     * This function is called periodically during operator control
+     */
     public void teleopPeriodic() 
     {
+    	//this line was sometimes was uncommented in a match but should always be commented out unless troubleshooting
     	System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage())) + "  Gyro: " + gyro.getAngle());
     	
-    	
+    	//calibrates the arm (raises it up until the hard stop) 
     	if (isCalibrating)
     		checkCalibrationStatus(); 
     	
+    	//for turning 180 degrees
     	if (isTurning)
     	{
     		checkTurningStatus(); 
@@ -561,36 +557,49 @@ public class Robot extends IterativeRobot {
   	   	
     	TeleopFunctions chosen; 
     	int currentPosition = armR.getEncPosition();
+    	
+    	//this line was also uncommented at CIR - should be commented out 
     	System.out.println(currentPosition);
     	
+    	//get the value of the slider on the joystick 
+    	//this is used so the driver can adjust max speed anywhere from 60% to 100% 
     	double scale = stickj.getRawAxis(3)*-1; 
-    	
     	scale = ((scale+1)/5)+0.6; 
 
+    	//gets the x and y axis values from the joystick 
     	moveValue = stickj.getRawAxis(1);
     	rotateValue = stickj.getRawAxis(0); 
     	
+    	//dead zone on y axis value
     	if (Math.abs(moveValue)<0.005)
     		moveValue = 0; 
     	
+    	//creates a dead zone on x axis value only if the y axis value is small 
     	if (Math.abs(rotateValue)<0.005 && Math.abs(moveValue)<0.1)
     		rotateValue = 0;
     	
+    	//scale down the values 
     	moveValue = moveValue*scale; 
     	rotateValue = rotateValue*scale; 
     	
+    	//if driver tries to turn the robot, stop running the 180 degree turn method
     	if (rotateValue > 0)
     		isTurning = false; 
     	
     	
-    	if (!isTurning) 
-    		myRobot.arcadeDrive(moveValue, rotateValue, true); //this causes the robot to be controlled by the other joystick
+    	if (!isTurning) //makes sure the driver isn't trying to use the 180 degree turn method
+    		myRobot.arcadeDrive(moveValue, rotateValue, true); 
     	
+    	//high dead zone for the bag motors - that button on the xbox doesn't always go back to 0 position easily 
     	double intakeAxis = stickx.getRawAxis(5); 
     	if(Math.abs(intakeAxis)<0.25) 
     		intakeAxis=0; 
-    		
+    	
+    	//spins the bag motors
     	intake.drive(intakeAxis, 0);
+    	
+    	//this code was used so driver could switch between front and back camera 
+    	//back camera USB broke at CIR so commented out 
     	
     	/*if(stickj.getRawButton(1))
     	{
@@ -617,19 +626,22 @@ public class Robot extends IterativeRobot {
     		while(stickx.getRawButton(5));
     	}*/
     	
+    	//starts the 180 degree turn
     	if (!isTurning)
     	{
 	    	if(stickj.getRawButton(2))
 	    		startTurning();
     	}
     	
+    	//provides the driver another way to get out of 180 degree turn method
     	if (stickj.getRawButton(5)) // see if Jack likes this button 
     		isTurning = false; 
     	
-		activeCamera.getImage(img);
-		
+		//camera displayed on dahsboard
+    	activeCamera.getImage(img);
 		server.setImage(img); // puts image on the dashboard
 			
+		//allows the drive to invert the motors to help with driving backwards
        	if (stickj.getRawButton(3)) //changed 3.14 from button 2 to button 3
        	{  	     		
        		
@@ -642,26 +654,23 @@ public class Robot extends IterativeRobot {
     
        	}
        	
-        //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)     
-      //angela was here
+       	//button functions on the xBox 
+        //The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)    
       	chosen = TeleopFunctions.NONE;     	
     	
-        //Y is for the calibration 
+        //Y is for getting the arm to the right place to shoot the ball
         if (stickx.getRawButton(3)==true)
         	chosen = TeleopFunctions.SHOOT; 
         
-
-        //A is for getting the ball to the right place for crossing low bar
+        //A is for getting the arm to the right place for crossing low bar when ball intake is in backwards
         else if (stickx.getRawButton(1)==true)
         	chosen = TeleopFunctions.LOWBARBACKWARD; 
         
-  
-       //X is for shooting 
+        //Upper Left button is for bringing the intake back up to the hard stop (calibrating it) 
         else if (stickx.getRawButton(5)==true)
             chosen = TeleopFunctions.RESET;
-   
-        
-        //B is for getting the ball to the right place for intake 
+           
+        //B is for getting the arm to the right place to grab a ball  
         else if (stickx.getRawButton(2)==true)
         	chosen = TeleopFunctions.GRABBALL;
         
@@ -669,10 +678,11 @@ public class Robot extends IterativeRobot {
         else if (stickx.getRawButton(6)==true)
         	chosen = TeleopFunctions.HOLD;
         
+        //X is for getting the arm to the right place for crossing low bar when ball intake is in front
         else if (stickx.getRawButton(4)== true)
         	chosen = TeleopFunctions.LOWBARFORWARDS; 
         
-           
+        //calls the method adjustArmHeight based on which button is pressed   
         switch (chosen)
         {
 	        case NONE: 
@@ -702,12 +712,15 @@ public class Robot extends IterativeRobot {
 	        	adjustArmHeight(LOWBARFORWARDHEIGHT);
         }
         
+        //allows arm to also be manually controlled 
         if(!isCalibrating&&chosen!=TeleopFunctions.HOLD) {
     		double armAxis = stickx.getRawAxis(1); 
 
     		if(armR.getControlMode()==TalonControlMode.Position)
     		{
     			System.out.println("EXITING POSITION MODE");
+    			
+    			//sets dead zone on the arm
     			if (Math.abs(armAxis)>0.2)
     			{
     				armR.changeControlMode(TalonControlMode.PercentVbus);
@@ -734,6 +747,7 @@ public class Robot extends IterativeRobot {
     
     public void startCalibration()
     {
+    	//sets up all variables for calibrating
     	isCalibrating=true; 
     	isCalibrated = false; 
     	armR.changeControlMode(TalonControlMode.PercentVbus);
@@ -747,6 +761,8 @@ public class Robot extends IterativeRobot {
     {
     	double timerVal = calTimer.get();
 /*    	System.out.println("calTimer:" + timerVal);*/
+    	
+    	//calibration will run for at least 0.1 seconds
     	if (timerVal<0.1)
     		return false; 
     	
@@ -754,6 +770,8 @@ public class Robot extends IterativeRobot {
 		/*System.out.println("cDelta:" + (newPosition-lastPosition));*/
 	
 		
+		//stops calibration if the current encoder position is different from the previous by less than 100
+		//stops calibration is it has been running for over 10 seconds 
 		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>10) 
 		{
 			calTimer.stop();
@@ -774,13 +792,14 @@ public class Robot extends IterativeRobot {
     	return false;  
     } 
     
+    //sets up all variables for the 180 degree turn
     public void startTurning()
     {
     	gyro.reset();
     	isTurning=true; 
     	isTurned = false; 
     	turnBack = false; 
-    	holdPosition = gyro.getAngle()+180; //theoretically should be 180
+    	holdPosition = gyro.getAngle()+180; //theoretically should be 180 because gyro just reset
     	myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
     	
     }
@@ -794,7 +813,7 @@ public class Robot extends IterativeRobot {
 		
 		if (turnBack)
 		{
-			myRobot.setLeftRightMotorOutputs(0.25, -0.25);
+			myRobot.setLeftRightMotorOutputs(0.25, -0.25); //turns robot back to hold position slowly 
 			if (holdPosition > newPosition)
 			{
 				isTurning = false; 
@@ -810,17 +829,14 @@ public class Robot extends IterativeRobot {
 				myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
 			
 			else  
-				myRobot.setLeftRightMotorOutputs(-0.35, 0.35);
+				myRobot.setLeftRightMotorOutputs(-0.35, 0.35); //slows robot down when it gets closer
 			
-			if (newPosition > holdPosition) 
+			if (newPosition > holdPosition) //sees if robot has passed the holdPosition 
 			{
 				turnBack = true; 
 				
 			}
 		}
-		
-		
-		
 		
     	return false;  
     } 
@@ -829,36 +845,108 @@ public class Robot extends IterativeRobot {
     
     public void adjustArmHeight (double height)
     {
+    	//makes sure the arm has been calibrated at least once during the match 
     	if (isCalibrated)
     	{
 	    	armR.changeControlMode(TalonControlMode.Position); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
 	    	armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
 	    
-	    	armR.set(height);
+	    	armR.set(height); 
 	    	armR.reverseSensor(true); 
 	    	armR.enableControl(); //Enable PID control on the talon
     	}
     	
     	else 
-    		System.out.println("YOU NEED TO CALIBRATE!!"); 
-    	
-    	
-
-    }
+    		System.out.println("YOU NEED TO CALIBRATE!!"); 	
+        }
     
+    //method to get the distance in inches from ultrasonic sensor
     public double inchFromHRLV (double volts)
     {
-    	double v = (volts*43.796)-2.6048; 
+    	double v = (volts*43.796)-2.6048; //equation determined graphically after running some tests
     	return v; 
     }
     
-    public double inchFromLV (double volts)
+ 
+  //internal class to write to myRobot (a RobotDrive object) using a PIDOutput
+    public class GyroPIDOutput implements PIDOutput 
     {
-    	 double v = (volts*91.019) + 5.0692; 
-    	 return v; 
+    	int counter = 0; 
+    	   	
+    	//this never used in the code
+    	//elected to make tPower a global variable instead 
+    	public void setPower(double power)
+    	{
+    		tPower = power; 
+    	}
+    	
+	    public void pidWrite(double output) 
+	    {
+	    	
+	    	double scaled = output*0.1;
+	    	
+	    	if(gPid.isEnabled())//this was added 3-3
+	    		//scaled is used to change the power outputs to both sides 
+	    		myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
+	    	
+	    	/*System.out.println("Left wheel: " + (-(tPower+scaled)));
+	    	System.out.println("Right wheel: " + (-(tPower-scaled)));*/
+	    	
+	    		    
+	    }
     }
     
+    //sets up a PIDSource to work with the gyro 
+    public class GyroPIDSource implements PIDSource
+    {
+    	  /**
+    	   * Set which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @param pidSource
+    	   *            An enum to select the parameter.
+    	   */
+    	
+    	private PIDSourceType myType; 
+    	
+    	  public void setPIDSourceType(PIDSourceType pidSource)
+    	  {
+       		  myType = pidSource; 
+    	  }
+    	  /**
+    	   * Get which parameter of the device you are using as a process control
+    	   * variable.
+    	   *
+    	   * @return the currently selected PID source parameter
+    	   */
+    	  public PIDSourceType getPIDSourceType()
+    	  {
+    		  return myType; 
+    	  }
+    	  /**
+    	   * Get the result to use in PIDController
+    	   *$
+    	   * @return the result to use in PIDController
+    	   */
+    	  public double pidGet()
+    	  {
+    		  /*System.out.println(gyro.getAngle());*/
+    		  return gyro.getAngle();	  
+    	  }
+    	}
+    
+      
+     //method to read values from our LV sensor which broke week 6
+      public double inchFromLV (double volts)
+      {
+    	 double v = (volts*91.019) + 5.0692; 
+    	 return v; 
+      }
+    
 
+     //the next two methods were methods we worked on to get the robot to the right place using the ultrasonic sensor
+     //we never finished these methods and do not use them in the code 
+      
     //returns 0 if it has not gotten to the right distnace
     //returns 1 if it has seen it once and needs to go backwards
     //returns 2 if it is done doing its thing
@@ -870,7 +958,7 @@ public class Robot extends IterativeRobot {
     	else 
     		ultraVal = inchFromLV(ultra.getVoltage()); 
     	
-    	/*System.out.println("Current Ultra View: " + ultraVal);*/
+    	System.out.println("Current Ultra View: " + ultraVal);
     	
     	if (!seenOnce)
     	{ 
@@ -948,81 +1036,6 @@ public class Robot extends IterativeRobot {
    
     	return toSpot; 
     }
-    */
-  //internal class to write to myRobot (a RobotDrive object) using a PIDOutput
-    public class GyroPIDOutput implements PIDOutput 
-    {
-    	int counter = 0; 
-    	   	
-    	public void setPower(double power)
-    	{
-    		tPower = power; 
-    	}
-    	
-	    public void pidWrite(double output) 
-	    {
-	    		   
-	
-	    	double scaled = output*0.1;
-	    	
-	    	if(gPid.isEnabled())//this if was added 3-3
-	    		myRobot.setLeftRightMotorOutputs(-1*(tPower+scaled), -1*(tPower-scaled));
-	    	
-	    	/*System.out.println("Left wheel: " + (-(tPower+scaled)));
-	    	System.out.println("Right wheel: " + (-(tPower-scaled)));*/
-	    	
-	    		    
-	    }
-    }
-    
-    public class GyroPIDSource implements PIDSource
-    {
-    	  /**
-    	   * Set which parameter of the device you are using as a process control
-    	   * variable.
-    	   *
-    	   * @param pidSource
-    	   *            An enum to select the parameter.
-    	   */
-    	
-    	private PIDSourceType myType; 
-    	
-    	  public void setPIDSourceType(PIDSourceType pidSource)
-    	  {
-       		  myType = pidSource; 
-    	  }
-    	  /**
-    	   * Get which parameter of the device you are using as a process control
-    	   * variable.
-    	   *
-    	   * @return the currently selected PID source parameter
-    	   */
-    	  public PIDSourceType getPIDSourceType()
-    	  {
-    		  return myType; 
-    	  }
-    	  /**
-    	   * Get the result to use in PIDController
-    	   *$
-    	   * @return the result to use in PIDController
-    	   */
-    	  public double pidGet()
-    	  {
-    		  /*System.out.println(gyro.getAngle());*/
-    		  return gyro.getAngle();
-    		  
-    		  
-    	  }
-    	}
-
-    // wo fei chang bu xiang ta men, wo jue de ta men zuo dong xi zuo di bu hao. ta men bu ke yi ting de dong wo men. 
-    //ta men de lian shi zuo ta men de ji qi ren dan shi wo men de dui ren zuo wo men de ji qi ren suo yi ta men de 
-    //ji qi ren bi wo men de ji qi ren hao yi dian dian dan shi wo men de dui bi ta men de dui fei chang hao
-    //ta men shi di ba ge, wo men shi di shi jiu ge. wo jue de bu zhen de ying wei ta men bu zuo na ge. wo jue de ta 
-    //men fei chang yue ben. fei chang, fei chang, fei chang bu hao! 
-    
-    //ni men de auto code bu ke yi duo hen duo dong xi. wo men fei chang bu xi huan ta men. wo bu xi huan ta men. 
-    
-    //zhi ge fei chang tiao qi. wo men de jia zai ta men de jia de you bian. suo yi mei ge shi hou, wo dei gen ta shuo huo. 
+    */    
     
 }
