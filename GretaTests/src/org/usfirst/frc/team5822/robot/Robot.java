@@ -37,25 +37,27 @@ public class Robot extends IterativeRobot {
 
 	Joystick xboxCtr; //xbox
 	Joystick joystick; //joystick
-	Joystick test; 
-		
+	private final static double ROTATION_SCALE_FACTOR = 0.6;		
 	int gyroCounter; 
 	double speedCountTest; 
 
 	//auto variables
 	Timer autoTimer = new Timer();
 	int autoStep;
-	static double autoTurnTo; 
-	static double autoDistanceToCastleWall; 
-	static double autoDistanceToFlaps; 
-	static double autoDistanceToFirstCastle; 
-	static double autoDistanceToSecondCastle; 
-	static double autoTimeSafety;
-	static double autoDistanceToSlow; 
-	static double autoShootDelay; 
-	static double pidSpeedFast; 
-	static double pidSpeedSlow; 
-	static double autoTimeToDefense; 
+	private final static double AUTO_TURN_TO = 55;
+	private final static double ADT_CASTLE_WALL = 61; 
+	private final static double ADT_FLAPS = 24; 
+	private final static double ADT_FIRST_CASTLE = 120; 
+	private final static double ADT_SECOND_CASTLE = 100; 
+	private final static double AUTO_TIME_SAFETY = 0.3;
+	private final static double ADT_SLOW = 24; 
+	private final static double AUTO_SHOOT_DELAY = 2;
+	private final static int AUTO_SHOOT_UNTIL_TIME = 3;
+	private final static double PID_SPEED_FAST = 0.3; 
+	private final static double PID_SPEED_SLOW = 0.175; 
+	private final static double AUTO_TIME_DEFENSE = 0.75; 
+	
+	
 	
 	//sensors
 	ADXRS450_Gyro gyro;
@@ -118,7 +120,7 @@ public class Robot extends IterativeRobot {
 		server = CameraServer.getInstance();
 		server.setQuality(25);
 		cameraFront = new USBCamera("cam1"); //changed from cam0 3-17
-		cameraBack = new USBCamera("cam1");
+		cameraBack = new USBCamera("cam0");
 		cameraFront.openCamera();
 		cameraBack.openCamera();
 		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
@@ -139,17 +141,17 @@ public class Robot extends IterativeRobot {
 		intake = new SICPRobotDrive(5, 6);
 
 		//sets up joysticks
-		test = new Joystick (1); 
+		Joystick test = new Joystick (1); 
 		
 		if (test.getIsXbox())
 		{ 
 			joystick = new Joystick(0);  
-			xboxCtr = new Joystick(1);
+			xboxCtr = test;
 		}
 		
 		else 
 		{ 
-			joystick = new Joystick(1); 
+			joystick = test; 
 			xboxCtr = new Joystick(0); 
 		}
 			
@@ -186,7 +188,7 @@ public class Robot extends IterativeRobot {
 		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
 		gPid.setInputRange(-360, 360);
 		
-		pidTurn = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
+		pidTurn = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutputForTurn(), 0.001); //the lowest possible period is 0.001
 		pidTurn.setInputRange(-360, 360);
 		
 	
@@ -218,17 +220,7 @@ public class Robot extends IterativeRobot {
 
 
 		startCalibration(); //starts to bring up the ball intake arm
-		autoTurnTo = 55;
-		autoDistanceToCastleWall = 61; 
-		autoDistanceToFlaps = 24; 
-		autoDistanceToFirstCastle = 120; 
-		autoDistanceToSecondCastle = 10; 
-		autoTimeSafety = 0.3;
-		autoDistanceToSlow = 24; 
-		autoShootDelay = 2; 
-		pidSpeedFast = 0.3; 
-		pidSpeedSlow = 0.175;
-		autoTimeToDefense = 0.75; 
+		 
 		
 	}
 
@@ -269,7 +261,7 @@ public class Robot extends IterativeRobot {
 			{
 			case 0: //start the PID to go straight
 			{
-				tPower = pidSpeedFast;
+				tPower = PID_SPEED_FAST;
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -281,7 +273,7 @@ public class Robot extends IterativeRobot {
 			case 1: //Continue until 2' from flaps
 			{
 
-				if (ultraDistance < autoDistanceToFlaps) //sensor has seen the low bar flaps
+				if (ultraDistance < ADT_FLAPS) //sensor has seen the low bar flaps
 				{
 					autoStep = 2; 
 					System.out.println("going to 2");
@@ -292,7 +284,7 @@ public class Robot extends IterativeRobot {
 			case 2: //Continue until past flaps
 			{ 
 
-				if (ultraDistance > autoDistanceToFirstCastle) 
+				if (ultraDistance > ADT_FIRST_CASTLE) 
 				{
 					autoTimer.reset();
 					autoTimer.start();
@@ -307,9 +299,9 @@ public class Robot extends IterativeRobot {
 			case 3: //Make sure we really passed flaps
 			{
 				//is this long enough?
-				if (autoTimer.get() > autoDistanceToSecondCastle)
+				if (autoTimer.get() > AUTO_TIME_SAFETY)
 				{
-					if (ultraDistance > autoDistanceToSecondCastle) //robot has seen the wall on the other side
+					if (ultraDistance > ADT_SECOND_CASTLE) //robot has seen the wall on the other side
 					{
 						autoTimer.reset();
 						System.out.println("going to 4");
@@ -331,12 +323,12 @@ public class Robot extends IterativeRobot {
 			case 4: // waits until the ultrasonic reads the right distance
 			{
 
-				if (ultraDistance < (autoDistanceToCastleWall + autoDistanceToSlow)) //used to be 62, was 106 after Peoria
+				if (ultraDistance < (ADT_CASTLE_WALL + ADT_SLOW)) //used to be 62, was 106 after Peoria
 				{
 					gPid.reset(); //changed to reset
 					myRobot.drive(0,  0); //added the -0.01 power
 					autoStep = 45; 
-					tPower = pidSpeedSlow; //slows the robot down so it won't over shoot as much
+					tPower = PID_SPEED_SLOW; //slows the robot down so it won't over shoot as much
 					gPid.enable();
 					System.out.println(ultraDistance); 
 					System.out.println("going to 45");
@@ -348,7 +340,7 @@ public class Robot extends IterativeRobot {
 			case 45: 
 			{
 				//this distance still not correct - reason we missed the goal at CIR
-				if (ultraDistance < autoDistanceToCastleWall) //was 94 after Peoria
+				if (ultraDistance < ADT_CASTLE_WALL) //was 94 after Peoria
 				{
 					gPid.reset();
 					myRobot.drive(0, 0);
@@ -359,7 +351,7 @@ public class Robot extends IterativeRobot {
 
 			case 50: //uses a PID to go backwards
 			{
-				tPower = (-1)*pidSpeedSlow; //sets a negative power
+				tPower = (-1)*PID_SPEED_SLOW; //sets a negative power
 				gPid.enable();
 				System.out.println("going to 6");
 				autoStep = 60;  
@@ -370,7 +362,7 @@ public class Robot extends IterativeRobot {
 			{
 
 				//this distance still not correct - reason we missed the goal at CIR
-				if (ultraDistance >= autoDistanceToCastleWall)  //was 94 at end of Peoria
+				if (ultraDistance >= ADT_CASTLE_WALL)  //was 94 at end of Peoria
 				{
 					System.out.println(ultraDistance);
 					gPid.disable();
@@ -386,7 +378,7 @@ public class Robot extends IterativeRobot {
 			case 70: 
 			{
 
-				if (gyro.getAngle()< autoTurnTo) //this angle looked good at CIR
+				if (gyro.getAngle()< AUTO_TURN_TO) //this angle looked good at CIR
 					myRobot.setLeftRightMotorOutputs(-0.3,0.3);
 
 				else 
@@ -401,7 +393,7 @@ public class Robot extends IterativeRobot {
 
 			case 80: // turns slowly back in case of overshoot 
 			{
-				if (gyro.getAngle() >= autoTurnTo) 
+				if (gyro.getAngle() >= AUTO_TURN_TO) 
 					myRobot.setLeftRightMotorOutputs(0.17,-0.17);
 				else 
 				{
@@ -415,8 +407,8 @@ public class Robot extends IterativeRobot {
 			case 90: //uses a PID to start to go forward
 			{
 				myRobot.drive(0, 0);
-				gPid.setSetpoint(autoTurnTo); //test this angle
-				tPower = pidSpeedFast; 
+				gPid.setSetpoint(AUTO_TURN_TO); //test this angle
+				tPower = PID_SPEED_FAST; 
 				gPid.enable();
 
 				autoTimer.reset();
@@ -430,7 +422,7 @@ public class Robot extends IterativeRobot {
 			case 110: //drive forward for time
 			{
 
-				if (autoTimer.get() > autoShootDelay) //test this num
+				if (autoTimer.get() > AUTO_SHOOT_DELAY) //test this num
 				{
 					gPid.reset();
 					myRobot.setLeftRightMotorOutputs(0,0);
@@ -447,7 +439,7 @@ public class Robot extends IterativeRobot {
 					intake.setLeftRightMotorOutputs(-1, -1);
 				}
 
-				if (autoTimer.get()>3)  
+				if (autoTimer.get()>AUTO_SHOOT_UNTIL_TIME)  
 				{
 					autoStep = 130;
 					System.out.println("going to 13");
@@ -474,7 +466,7 @@ public class Robot extends IterativeRobot {
 			{ 
 			case 0: //start the PID to go straight
 			{
-				tPower = pidSpeedFast; //set to higher power
+				tPower = PID_SPEED_FAST; //set to higher power
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -487,7 +479,7 @@ public class Robot extends IterativeRobot {
 			case 1: //approaches defense quickly
 			{
 
-				if (autoTimer.get()>autoTimeToDefense) //test this number
+				if (autoTimer.get()>AUTO_TIME_DEFENSE) //test this number
 				{
 					autoStep = 2; 
 					System.out.println("going to 2");
@@ -498,7 +490,7 @@ public class Robot extends IterativeRobot {
 
 			case 2: //continues to drive forward slowly into the defense
 			{
-				tPower = pidSpeedSlow; 			
+				tPower = PID_SPEED_SLOW; 			
 			}
 
 			}
@@ -577,9 +569,9 @@ public class Robot extends IterativeRobot {
 
 		//scale down the values 
 		moveValue = moveValue*scale; 
-		rotateValue = rotateValue*scale; 
+		rotateValue = rotateValue*ROTATION_SCALE_FACTOR; 
 		
-		/*if (Math.abs(rotateValue) < 0.7)
+		/*if (Math.abs(moveValue) > 0.3)
 			rotateValue = rotateValue*scale;
 			
 		else 
@@ -604,15 +596,10 @@ public class Robot extends IterativeRobot {
 
 		//spins the bag motors
 		intake.drive(intakeAxis, 0);
-
-		//TODO - figure out if camR is necessary 
 		
 		//this code was used so driver could switch between front and back camera 
 		if(joystick.getRawButton(1))
     	{
-    	 
-			String camR; 
-
     		if (cameraID==1)
     		{
     			cameraID=0;
@@ -622,14 +609,11 @@ public class Robot extends IterativeRobot {
     		}
     		else
     		{
+    			cameraID=1; 
 				cameraFront.stopCapture();
 				cameraBack.startCapture();
 				activeCamera = cameraBack; 
-    			cameraID=1; 
     		}
-
-    		camR = "cam" + cameraID;
-
 
     		while(joystick.getRawButton(1));
     	}
@@ -639,14 +623,14 @@ public class Robot extends IterativeRobot {
 		server.setImage(img); // puts image on the dashboard
 		
 		//starts the 180 degree turn
-		if (!isTurning)
+		if (!isTurning && !pidTurn.isEnabled())
 		{
 			if(joystick.getRawButton(2))
 				startTurning();
 			while(joystick.getRawButton(2));
 		}
 		
-		if(!pidTurn.isEnabled())
+		if (!isTurning && !pidTurn.isEnabled())
 		{
 			if(joystick.getRawButton(10))
 			{
@@ -656,7 +640,9 @@ public class Robot extends IterativeRobot {
 			}
 			while(joystick.getRawButton(10)); 
 		}
-
+		
+		//TODO add a way for program to get itself out of the gyro turn method 
+		
 		//provides the driver another way to get out of 180 degree turn method
 		if (joystick.getRawButton(5)) // see if Jack likes this button 
 		{
@@ -899,7 +885,7 @@ public class Robot extends IterativeRobot {
 
 		public void pidWrite(double output) 
 		{
-			double scaled = output*0.8; 
+			double scaled = output*0.3; 
 			
 			if(pidTurn.isEnabled())
 				myRobot.setLeftRightMotorOutputs(-1*(scaled), scaled);
