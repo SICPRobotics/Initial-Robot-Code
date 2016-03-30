@@ -226,7 +226,6 @@ public class Robot extends IterativeRobot {
 			{
 			case 0: //start the PID to go straight
 			{
-				//TODO can we go faster?
 				tPower = 0.3;
 				gPid.setSetpoint(0);
 				gPid.enable();
