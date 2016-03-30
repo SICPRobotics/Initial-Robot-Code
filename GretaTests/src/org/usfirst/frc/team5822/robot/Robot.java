@@ -37,16 +37,26 @@ public class Robot extends IterativeRobot {
 
 	Joystick xboxCtr; //xbox
 	Joystick joystick; //joystick
-
+	Joystick test; 
+		
 	int gyroCounter; 
 	double speedCountTest; 
 
 	//auto variables
 	Timer autoTimer = new Timer();
 	int autoStep;
-	double autoTurnTo; 
-	double autoDistanceTo; 
-
+	static double autoTurnTo; 
+	static double autoDistanceToCastleWall; 
+	static double autoDistanceToFlaps; 
+	static double autoDistanceToFirstCastle; 
+	static double autoDistanceToSecondCastle; 
+	static double autoTimeSafety;
+	static double autoDistanceToSlow; 
+	static double autoShootDelay; 
+	static double pidSpeedFast; 
+	static double pidSpeedSlow; 
+	static double autoTimeToDefense; 
+	
 	//sensors
 	ADXRS450_Gyro gyro;
 	AnalogInput ultrasonic;
@@ -54,7 +64,7 @@ public class Robot extends IterativeRobot {
 	//variables for cameras
 	int cameraID = 1; 
 	public static USBCamera cameraFront;
-	/*	public static USBCamera cameraBack;*/  //commented out because this camera's USB broke at CIR
+	public static USBCamera cameraBack;  //commented out because this camera's USB broke at CIR
 	public static USBCamera activeCamera; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 	CameraServer server;
@@ -78,7 +88,8 @@ public class Robot extends IterativeRobot {
 	double holdPosition = 180; 
 
 	//variables for our PID
-	PIDController gPid; 
+	PIDController gPid;
+	PIDController pidTurn; 
 	double tPower; 
 
 
@@ -94,7 +105,7 @@ public class Robot extends IterativeRobot {
 	//for the sendable chooser
 	String defense; 
 	SendableChooser chooser;
-//TODO START Camera in autoinit
+
 	/**
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
@@ -102,13 +113,14 @@ public class Robot extends IterativeRobot {
 	public void robotInit() {
 
 		//camera set up 
-		//everything with the back camera taken out - back camera USB broke at CIR
+		
+		//TODO make sure cameraBack's name is the same with new port 
 		server = CameraServer.getInstance();
 		server.setQuality(25);
 		cameraFront = new USBCamera("cam1"); //changed from cam0 3-17
-		/*		cameraBack = new USBCamera("cam1");*/
+		cameraBack = new USBCamera("cam1");
 		cameraFront.openCamera();
-		/*		cameraBack.openCamera();*/
+		cameraBack.openCamera();
 		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
 
 		activeCamera = cameraFront; 
@@ -127,9 +139,21 @@ public class Robot extends IterativeRobot {
 		intake = new SICPRobotDrive(5, 6);
 
 		//sets up joysticks
-		joystick = new Joystick(0);  
-		xboxCtr = new Joystick(1); 
-
+		test = new Joystick (1); 
+		
+		if (test.getIsXbox())
+		{ 
+			joystick = new Joystick(0);  
+			xboxCtr = new Joystick(1);
+		}
+		
+		else 
+		{ 
+			joystick = new Joystick(1); 
+			xboxCtr = new Joystick(0); 
+		}
+			
+		
 		//sets up gyro 
 		gyro = new ADXRS450_Gyro();
 		gyro.calibrate();
@@ -161,6 +185,13 @@ public class Robot extends IterativeRobot {
 		gType.setPIDSourceType(PIDSourceType.kDisplacement);
 		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
 		gPid.setInputRange(-360, 360);
+		
+		pidTurn = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
+		pidTurn.setInputRange(-360, 360);
+		
+	
+		
+	
 	}//End robotInit
 
 	/**
@@ -188,7 +219,16 @@ public class Robot extends IterativeRobot {
 
 		startCalibration(); //starts to bring up the ball intake arm
 		autoTurnTo = 55;
-		autoDistanceTo = 61; 
+		autoDistanceToCastleWall = 61; 
+		autoDistanceToFlaps = 24; 
+		autoDistanceToFirstCastle = 120; 
+		autoDistanceToSecondCastle = 10; 
+		autoTimeSafety = 0.3;
+		autoDistanceToSlow = 24; 
+		autoShootDelay = 2; 
+		pidSpeedFast = 0.3; 
+		pidSpeedSlow = 0.175;
+		autoTimeToDefense = 0.75; 
 		
 	}
 
@@ -203,6 +243,10 @@ public class Robot extends IterativeRobot {
 
 	public void autonomousPeriodic() 
 	{
+		//camera displayed on dahsboard
+		activeCamera.getImage(img);
+		server.setImage(img); // puts image on the dashboard 
+				
 		if (counter++%20 ==0 )
 			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
 
@@ -221,12 +265,11 @@ public class Robot extends IterativeRobot {
 		if (defense.equals("lowbar") || defense.equals("lowbarNS")) 
 		{
 			//TODO: Consider faster speeds for auto, but only if accuracy is high
-			//TODO: Consider making speeds, angles, times, distances into static variables
 			switch (autoStep)
 			{
 			case 0: //start the PID to go straight
 			{
-				tPower = 0.3;
+				tPower = pidSpeedFast;
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -238,7 +281,7 @@ public class Robot extends IterativeRobot {
 			case 1: //Continue until 2' from flaps
 			{
 
-				if (ultraDistance < 24) //sensor has seen the low bar flaps
+				if (ultraDistance < autoDistanceToFlaps) //sensor has seen the low bar flaps
 				{
 					autoStep = 2; 
 					System.out.println("going to 2");
@@ -249,7 +292,7 @@ public class Robot extends IterativeRobot {
 			case 2: //Continue until past flaps
 			{ 
 
-				if (ultraDistance > 120) 
+				if (ultraDistance > autoDistanceToFirstCastle) 
 				{
 					autoTimer.reset();
 					autoTimer.start();
@@ -264,9 +307,9 @@ public class Robot extends IterativeRobot {
 			case 3: //Make sure we really passed flaps
 			{
 				//is this long enough?
-				if (autoTimer.get() > 0.3)
+				if (autoTimer.get() > autoDistanceToSecondCastle)
 				{
-					if (ultraDistance > 100) //robot has seen the wall on the other side
+					if (ultraDistance > autoDistanceToSecondCastle) //robot has seen the wall on the other side
 					{
 						autoTimer.reset();
 						System.out.println("going to 4");
@@ -288,12 +331,12 @@ public class Robot extends IterativeRobot {
 			case 4: // waits until the ultrasonic reads the right distance
 			{
 
-				if (ultraDistance < (autoDistanceTo + 24)) //used to be 62, was 106 after Peoria
+				if (ultraDistance < (autoDistanceToCastleWall + autoDistanceToSlow)) //used to be 62, was 106 after Peoria
 				{
 					gPid.reset(); //changed to reset
 					myRobot.drive(0,  0); //added the -0.01 power
 					autoStep = 45; 
-					tPower = 0.175; //slows the robot down so it won't over shoot as much
+					tPower = pidSpeedSlow; //slows the robot down so it won't over shoot as much
 					gPid.enable();
 					System.out.println(ultraDistance); 
 					System.out.println("going to 45");
@@ -305,7 +348,7 @@ public class Robot extends IterativeRobot {
 			case 45: 
 			{
 				//this distance still not correct - reason we missed the goal at CIR
-				if (ultraDistance < autoDistanceTo) //was 94 after Peoria
+				if (ultraDistance < autoDistanceToCastleWall) //was 94 after Peoria
 				{
 					gPid.reset();
 					myRobot.drive(0, 0);
@@ -316,7 +359,7 @@ public class Robot extends IterativeRobot {
 
 			case 50: //uses a PID to go backwards
 			{
-				tPower = -0.175; //sets a negative power
+				tPower = (-1)*pidSpeedSlow; //sets a negative power
 				gPid.enable();
 				System.out.println("going to 6");
 				autoStep = 60;  
@@ -327,7 +370,7 @@ public class Robot extends IterativeRobot {
 			{
 
 				//this distance still not correct - reason we missed the goal at CIR
-				if (ultraDistance >= autoDistanceTo)  //was 94 at end of Peoria
+				if (ultraDistance >= autoDistanceToCastleWall)  //was 94 at end of Peoria
 				{
 					System.out.println(ultraDistance);
 					gPid.disable();
@@ -373,7 +416,7 @@ public class Robot extends IterativeRobot {
 			{
 				myRobot.drive(0, 0);
 				gPid.setSetpoint(autoTurnTo); //test this angle
-				tPower = 0.3; 
+				tPower = pidSpeedFast; 
 				gPid.enable();
 
 				autoTimer.reset();
@@ -387,7 +430,7 @@ public class Robot extends IterativeRobot {
 			case 110: //drive forward for time
 			{
 
-				if (autoTimer.get() > 2) //test this num
+				if (autoTimer.get() > autoShootDelay) //test this num
 				{
 					gPid.reset();
 					myRobot.setLeftRightMotorOutputs(0,0);
@@ -431,7 +474,7 @@ public class Robot extends IterativeRobot {
 			{ 
 			case 0: //start the PID to go straight
 			{
-				tPower = 0.3; //set to higher power
+				tPower = pidSpeedFast; //set to higher power
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -444,7 +487,7 @@ public class Robot extends IterativeRobot {
 			case 1: //approaches defense quickly
 			{
 
-				if (autoTimer.get()>0.75) //test this number
+				if (autoTimer.get()>autoTimeToDefense) //test this number
 				{
 					autoStep = 2; 
 					System.out.println("going to 2");
@@ -455,7 +498,7 @@ public class Robot extends IterativeRobot {
 
 			case 2: //continues to drive forward slowly into the defense
 			{
-				tPower = 0.175; 			
+				tPower = pidSpeedSlow; 			
 			}
 
 			}
@@ -536,16 +579,22 @@ public class Robot extends IterativeRobot {
 		moveValue = moveValue*scale; 
 		rotateValue = rotateValue*scale; 
 		
-		/*if (Math.abs(rotateValue) < 0.4)
-			rotateValue = rotateValue*scale;*/ 
+		/*if (Math.abs(rotateValue) < 0.7)
+			rotateValue = rotateValue*scale;
+			
+		else 
+		 	rotateValue = rotateValue*0.6; */ 
 		
 
 		//if driver tries to turn the robot, stop running the 180 degree turn method
-		if (rotateValue > 0)
-			isTurning = false; 
+		if (rotateValue > 0 || moveValue > 0)
+		{
+			isTurning = false;
+			pidTurn.reset(); 
+		}
 
 
-		if (!isTurning) //makes sure the driver isn't trying to use the 180 degree turn method
+		if (!isTurning && !pidTurn.isEnabled()) //makes sure the driver isn't trying to use the 180 degree turn method
 			myRobot.arcadeDrive(moveValue, rotateValue, true); 
 
 		//large dead zone for the bag motors - that button on the xbox doesn't always go back to 0 position easily 
@@ -556,13 +605,13 @@ public class Robot extends IterativeRobot {
 		//spins the bag motors
 		intake.drive(intakeAxis, 0);
 
+		//TODO - figure out if camR is necessary 
+		
 		//this code was used so driver could switch between front and back camera 
-		//back camera USB broke at CIR so commented out 
-
-//TODO put camera back
-		/*		if(joystick.getRawButton(1))
+		if(joystick.getRawButton(1))
     	{
-    		String camR; 
+    	 
+			String camR; 
 
     		if (cameraID==1)
     		{
@@ -583,8 +632,12 @@ public class Robot extends IterativeRobot {
 
 
     		while(joystick.getRawButton(1));
-    	}*/
+    	}
 
+		//camera displayed on dahsboard
+		activeCamera.getImage(img);
+		server.setImage(img); // puts image on the dashboard
+		
 		//starts the 180 degree turn
 		if (!isTurning)
 		{
@@ -592,14 +645,24 @@ public class Robot extends IterativeRobot {
 				startTurning();
 			while(joystick.getRawButton(2));
 		}
+		
+		if(!pidTurn.isEnabled())
+		{
+			if(joystick.getRawButton(10))
+			{
+				gyro.reset();
+				pidTurn.setSetpoint(gyro.getAngle()+180);
+				pidTurn.enable(); 
+			}
+			while(joystick.getRawButton(10)); 
+		}
 
 		//provides the driver another way to get out of 180 degree turn method
 		if (joystick.getRawButton(5)) // see if Jack likes this button 
+		{
 			isTurning = false; 
-
-		//camera displayed on dahsboard
-		activeCamera.getImage(img);
-		server.setImage(img); // puts image on the dashboard
+			pidTurn.reset(); 
+		}
 
 		//allows the drive to invert the motors to help with driving backwards
 		if (joystick.getRawButton(3)) //changed 3.14 from button 2 to button 3
@@ -618,10 +681,9 @@ public class Robot extends IterativeRobot {
 		//The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)    
 		TeleopFunctions chosen = TeleopFunctions.NONE;     	
 
-		//TODO - adjust buttons per Angela's request
-		//Y is for getting the arm to the right place to shoot the ball
+		//Y is for getting the arm to the right place to go low bar forward 
 		if (xboxCtr.getRawButton(3)==true)
-			chosen = TeleopFunctions.SHOOT; 
+			chosen = TeleopFunctions.LOWBARFORWARDS; 
 
 		//A is for getting the arm to the right place for crossing low bar when ball intake is in backwards
 		else if (xboxCtr.getRawButton(1)==true)
@@ -639,9 +701,9 @@ public class Robot extends IterativeRobot {
 		else if (xboxCtr.getRawButton(6)==true)
 			chosen = TeleopFunctions.HOLD;
 
-		//X is for getting the arm to the right place for crossing low bar when ball intake is in front
+		//X is for getting the arm to the right place for shooting the ball 
 		else if (xboxCtr.getRawButton(4)== true)
-			chosen = TeleopFunctions.LOWBARFORWARDS; 
+			chosen = TeleopFunctions.SHOOT; 
 
 		//If the button is held down, don't repeat the position set
 		if (chosen != lastChosen) {
@@ -699,7 +761,6 @@ public class Robot extends IterativeRobot {
 		}
 
 	}
-//TODO - check for xbox controller type to have no user mess up
 
 
 	/**
@@ -808,8 +869,6 @@ public class Robot extends IterativeRobot {
 		return false;  
 	} 
 
-//TODO: Use a PID for the 180
-
 	public void adjustArmHeight (double height)
 	{
 		//makes sure the arm has been calibrated at least once during the match 
@@ -835,6 +894,20 @@ public class Robot extends IterativeRobot {
 	}
 
 
+	public class GyroPIDOutputForTurn implements PIDOutput 
+	{
+
+		public void pidWrite(double output) 
+		{
+			double scaled = output*0.8; 
+			
+			if(pidTurn.isEnabled())
+				myRobot.setLeftRightMotorOutputs(-1*(scaled), scaled);
+		}
+		
+	}
+
+	
 	//internal class to write to myRobot (a RobotDrive object) using a PIDOutput
 	public class GyroPIDOutput implements PIDOutput 
 	{
@@ -900,5 +973,8 @@ public class Robot extends IterativeRobot {
 	{
 		double v = (volts*91.019) + 5.0692; 
 		return v; 
-	}        
+	}
+
+
+	      
 }
