@@ -632,17 +632,16 @@ public class Robot extends IterativeRobot {
 		
 		if (!isTurning && !pidTurn.isEnabled())
 		{
-			if(joystick.getRawButton(10))
+			if(joystick.getRawButton(4))
 			{
 				gyro.reset();
 				pidTurn.setSetpoint(gyro.getAngle()+180);
 				pidTurn.enable(); 
 			}
-			while(joystick.getRawButton(10)); 
+			while(joystick.getRawButton(4)); 
 		}
 		
-		//TODO add a way for program to get itself out of the gyro turn method 
-		
+				
 		//provides the driver another way to get out of 180 degree turn method
 		if (joystick.getRawButton(5)) // see if Jack likes this button 
 		{
