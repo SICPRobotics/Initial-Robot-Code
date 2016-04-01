@@ -45,15 +45,16 @@ public class Robot extends IterativeRobot {
 	Timer autoTimer = new Timer();
 	int autoStep;
 	private final static double AUTO_TURN_TO = 55;
-	private final static double ADT_CASTLE_WALL = 61; 
+	private final static double ADT_CASTLE_WALL = 55; //59 IS SLIGHTLY TOO RIGHT
 	private final static double ADT_FLAPS = 24; 
 	private final static double ADT_FIRST_CASTLE = 120; 
 	private final static double ADT_SECOND_CASTLE = 100; 
 	private final static double AUTO_TIME_SAFETY = 0.3;
-	private final static double ADT_SLOW = 24; 
-	private final static double AUTO_SHOOT_DELAY = 2;
+	private final static double ADT_SLOW = 36; 
+	private final static double AUTO_SHOOT_DELAY = 1.5;
 	private final static int AUTO_SHOOT_UNTIL_TIME = 3;
-	private final static double PID_SPEED_FAST = 0.3; 
+	private final static double PID_SPEED_TO_FLAP = 0.3; 
+	private final static double PID_SPEED_TO_CASTLE = 0.4; 
 	private final static double PID_SPEED_SLOW = 0.175; 
 	private final static double AUTO_TIME_DEFENSE = 0.75; 
 	
@@ -65,8 +66,8 @@ public class Robot extends IterativeRobot {
 
 	//variables for cameras
 	int cameraID = 1; 
-	public static USBCamera cameraFront;
-	public static USBCamera cameraBack;  //commented out because this camera's USB broke at CIR
+	public static USBCamera camBack;
+	public static USBCamera camFront;  //commented out because this camera's USB broke at CIR
 	public static USBCamera activeCamera; 
 	Image img =  NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0); 
 	CameraServer server;
@@ -97,6 +98,7 @@ public class Robot extends IterativeRobot {
 
 	int teleopFunction;
 	TeleopFunctions lastChosen = TeleopFunctions.NONE;
+	Timer teleTimer = new Timer();
 
 	//encoder values for heights for the ball intake	
 	private final int INTAKEHEIGHT = -69000; 
@@ -114,18 +116,17 @@ public class Robot extends IterativeRobot {
 	 */
 	public void robotInit() {
 
-		//camera set up 
-		
-		//TODO make sure cameraBack's name is the same with new port 
+		//camera set up  
 		server = CameraServer.getInstance();
 		server.setQuality(25);
-		cameraFront = new USBCamera("cam1"); //changed from cam0 3-17
-		cameraBack = new USBCamera("cam0");
-		cameraFront.openCamera();
-		cameraBack.openCamera();
-		cameraFront.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
-
-		activeCamera = cameraFront; 
+		camBack = new USBCamera("cam1"); //changed from cam0 3-17
+		camFront = new USBCamera("cam0");
+		camBack.openCamera();
+		camFront.openCamera();
+		camBack.startCapture(); // startCapture so that it doesn't try to take a picture before the camera is on
+		
+		
+		activeCamera = camBack; 
 		/*the camera name (ex "cam0") can be found through the roborio web interface*/
 		server.startAutomaticCapture("cam"+cameraID);  
 
@@ -141,9 +142,13 @@ public class Robot extends IterativeRobot {
 		intake = new SICPRobotDrive(5, 6);
 
 		//sets up joysticks
-		Joystick test = new Joystick (1); 
+	/*	Joystick test = new Joystick (1);*/
+		joystick = new Joystick(0);
+		xboxCtr = new Joystick (1); 
 		
-		if (test.getIsXbox())
+		//TODO add this back in when can run two joysticks 
+		
+		/*if (test.getIsXbox())
 		{ 
 			joystick = new Joystick(0);  
 			xboxCtr = test;
@@ -153,7 +158,7 @@ public class Robot extends IterativeRobot {
 		{ 
 			joystick = test; 
 			xboxCtr = new Joystick(0); 
-		}
+		}*/
 			
 		
 		//sets up gyro 
@@ -166,7 +171,7 @@ public class Robot extends IterativeRobot {
 		//sets up the CANTalon that rotates the ball intake
 		armR = new CANTalon(1); 
 		armR.setFeedbackDevice(FeedbackDevice.QuadEncoder); //Set the feedback device that is hooked up to the talon
-		armR.setPID(0.2, 0.001, 100, 0.00, 360, 12, 0); //Set the PID constants (p, i, d)
+		armR.setPID(0.2, 0.001, 100, 0.00, 360, 24, 0); //Set the PID constants (p, i, d)
 		armR.reverseSensor(true);
 		armR.changeControlMode(TalonControlMode.PercentVbus); //Change control mode of talon, default is PercentVbus (-1.0 to 1.0)
 
@@ -235,9 +240,11 @@ public class Robot extends IterativeRobot {
 
 	public void autonomousPeriodic() 
 	{
-		//camera displayed on dahsboard
-		activeCamera.getImage(img);
-		server.setImage(img); // puts image on the dashboard 
+		if (autoStep >3){ 
+			//camera displayed on dahsboard
+			activeCamera.getImage(img);
+			server.setImage(img); // puts image on the dashboard 
+		}
 				
 		if (counter++%20 ==0 )
 			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
@@ -261,7 +268,7 @@ public class Robot extends IterativeRobot {
 			{
 			case 0: //start the PID to go straight
 			{
-				tPower = PID_SPEED_FAST;
+				tPower = PID_SPEED_TO_FLAP;
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -306,6 +313,7 @@ public class Robot extends IterativeRobot {
 						autoTimer.reset();
 						System.out.println("going to 4");
 						autoStep = 4; 
+						tPower = PID_SPEED_TO_CASTLE; 
 					}
 
 					else 
@@ -408,7 +416,7 @@ public class Robot extends IterativeRobot {
 			{
 				myRobot.drive(0, 0);
 				gPid.setSetpoint(AUTO_TURN_TO); //test this angle
-				tPower = PID_SPEED_FAST; 
+				tPower = PID_SPEED_TO_CASTLE; 
 				gPid.enable();
 
 				autoTimer.reset();
@@ -466,7 +474,7 @@ public class Robot extends IterativeRobot {
 			{ 
 			case 0: //start the PID to go straight
 			{
-				tPower = PID_SPEED_FAST; //set to higher power
+				tPower = PID_SPEED_TO_FLAP; //set to higher power
 				gPid.setSetpoint(0);
 				gPid.enable();
 				autoStep = 1; 
@@ -513,6 +521,15 @@ public class Robot extends IterativeRobot {
 		myRobot.drive(0, 0);
 		myRobot.setSafetyEnabled(false);
 		autoStep=0; //auto sequence counter reset 
+		teleTimer.start();
+		
+		if(armR.getControlMode()==TalonControlMode.Position)
+		{
+			System.out.println("EXITING POSITION MODE");			
+			armR.changeControlMode(TalonControlMode.PercentVbus);
+			
+		}
+		
 	}
 
 
@@ -536,6 +553,7 @@ public class Robot extends IterativeRobot {
 		//this line was sometimes was uncommented in a match but should always be commented out unless troubleshooting
 		//System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage())) + "  Gyro: " + gyro.getAngle());
 
+		
 		//calibrates the arm (raises it up until the hard stop) 
 		if (isCalibrating)
 			checkCalibrationStatus(); 
@@ -548,8 +566,7 @@ public class Robot extends IterativeRobot {
 
 		//this line was also uncommented at CIR - should be commented out 
 		//System.out.println(currentPosition);
-
-		//TODO - Potentially Slow down turn 
+ 
 		//get the value of the slider on the joystick 
 		//this is used so the driver can adjust max speed anywhere from 60% to 100% 
 		double scale = joystick.getRawAxis(3)*-1; 
@@ -582,7 +599,8 @@ public class Robot extends IterativeRobot {
 		if (rotateValue > 0 || moveValue > 0)
 		{
 			isTurning = false;
-			pidTurn.reset(); 
+			pidTurn.reset();
+			/*System.out.println("Turn has been canceled " +"rotate value: " + rotateValue + "  " =*/
 		}
 
 
@@ -600,27 +618,43 @@ public class Robot extends IterativeRobot {
 		//this code was used so driver could switch between front and back camera 
 		if(joystick.getRawButton(1))
     	{
-    		if (cameraID==1)
+    		teleTimer.reset();
+    		
+			 
+			if (cameraID==1)
     		{
     			cameraID=0;
-				cameraBack.stopCapture();
-				cameraFront.startCapture();
-    			activeCamera = cameraFront; 
+				camFront.stopCapture();
+				camBack.startCapture();
+    			activeCamera = camBack; 
+    			teleTimer.start();
     		}
     		else
     		{
     			cameraID=1; 
-				cameraFront.stopCapture();
-				cameraBack.startCapture();
-				activeCamera = cameraBack; 
+				camBack.stopCapture();
+				camFront.startCapture();
+				activeCamera = camFront; 
+				teleTimer.start();
+				
     		}
 
-    		while(joystick.getRawButton(1));
+			
+    		
+    		System.out.println("Done switching cameras"); 
+			while(joystick.getRawButton(1));
+		
+			
     	}
 
-		//camera displayed on dahsboard
-		activeCamera.getImage(img);
-		server.setImage(img); // puts image on the dashboard
+		if (teleTimer.get()>1)
+		{
+			//camera displayed on dahsboard
+			activeCamera.getImage(img);
+			
+			server.setImage(img); // puts image on the dashboard
+			System.out.println("Put image on screen");
+		}
 		
 		//starts the 180 degree turn
 		if (!isTurning && !pidTurn.isEnabled())
@@ -663,11 +697,11 @@ public class Robot extends IterativeRobot {
 		}
 
 		//button functions on the xBox 
-		//The buttons on the xBox are Y(top, 3) B(right,2) A(bottom, 1) X(left, 4)    
+		//The buttons on the xBox are Y(top, 4) B(right,2) A(bottom, 1) X(left, 3)    
 		TeleopFunctions chosen = TeleopFunctions.NONE;     	
 
 		//Y is for getting the arm to the right place to go low bar forward 
-		if (xboxCtr.getRawButton(3)==true)
+		if (xboxCtr.getRawButton(4)==true)
 			chosen = TeleopFunctions.LOWBARFORWARDS; 
 
 		//A is for getting the arm to the right place for crossing low bar when ball intake is in backwards
@@ -681,13 +715,13 @@ public class Robot extends IterativeRobot {
 		//B is for getting the arm to the right place to grab a ball  
 		else if (xboxCtr.getRawButton(2)==true)
 			chosen = TeleopFunctions.GRABBALL;
-
+		
 		//Upper Right Button is for holding the intake arm in its place
 		else if (xboxCtr.getRawButton(6)==true)
 			chosen = TeleopFunctions.HOLD;
 
 		//X is for getting the arm to the right place for shooting the ball 
-		else if (xboxCtr.getRawButton(4)== true)
+		else if (xboxCtr.getRawButton(3)== true)
 			chosen = TeleopFunctions.SHOOT; 
 
 		//If the button is held down, don't repeat the position set
@@ -732,7 +766,7 @@ public class Robot extends IterativeRobot {
 			if(armR.getControlMode()==TalonControlMode.Position)
 			{
 				System.out.println("EXITING POSITION MODE");
-//TODO : Does the arm dead zone need to be bigger to allow positions to hold (PID)
+				//TODO : Does the arm dead zone need to be bigger to allow positions to hold (PID)
 				//sets dead zone on the arm
 				if (Math.abs(armAxis)>0.2)
 				{
@@ -743,6 +777,8 @@ public class Robot extends IterativeRobot {
 
 			else 
 				armR.set(armAxis*0.5);
+			
+			System.out.println("Exiting teleop");
 		}
 
 	}
@@ -764,8 +800,7 @@ public class Robot extends IterativeRobot {
 		armR.changeControlMode(TalonControlMode.PercentVbus);
 		lastPosition = armR.getPosition();
 		calTimer.start();
-		//TODO this was .6 until inspection.  raise back to clear bumpers if necessary
-		armR.set(0.35);
+		armR.set(0.4);
 
 	}
 
@@ -776,7 +811,7 @@ public class Robot extends IterativeRobot {
 
 		//calibration will run for at least 0.1 seconds
 		//TODO this should be longer. only needed to clear bumpers
-		if (timerVal<0.1)
+		if (timerVal<0.5)
 			return false; 
 
 		double newPosition = armR.getPosition(); 
