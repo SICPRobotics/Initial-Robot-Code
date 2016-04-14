@@ -58,6 +58,11 @@ public class Robot extends IterativeRobot {
 	private final static double PID_SPEED_SLOW = 0.175; 
 	private final static double AUTO_TIME_DEFENSE = 0.75; 
 	
+	//cdf auto variables
+	private static final double CDF_BACKUP_TIME = 0.2;
+	private static final double TIME_TO_MID_OF_CDF = 2; 
+	private static final double TIME_TO_OVER_CDF = 5; 
+	
 	
 	
 	//sensors
@@ -181,6 +186,7 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Low Bar", "lowbar");
 		chooser.addObject("Reach Defense", "reach");
 		chooser.addObject("Low Bar No Shoot", "lowbarNS");
+		chooser.addObject("Cheval!" , "cdf");
 		SmartDashboard.putData("Autonomous Defense Chooser", chooser);
 		//TODO Add robot width for spybot to adjust auto
 
@@ -260,7 +266,102 @@ public class Robot extends IterativeRobot {
 			return; 
 		}
 
+		//TODO: go through the entire CDF code! 
+		if (defense.equals("cdf"))
+		{
+			
+			switch(autoStep)
+			{ 
+			case 0: //start the PID to go straight
+			{
+				tPower = PID_SPEED_TO_FLAP; //set to higher power
+				gPid.setSetpoint(0);
+				gPid.enable();
+				autoStep = 1; 
+				System.out.println("going to 1");
+				autoTimer.reset();
+				autoTimer.start();
+				break; 
+			}
 
+			case 1: //drives into the defence (should use that to line up) 
+			{
+
+				if (autoTimer.get()>AUTO_TIME_DEFENSE) //will this time be enough 
+				{
+					autoStep = 2; 
+					System.out.println("going to 2");
+					gPid.reset(); 
+					myRobot.drive(0,  0); 
+					autoTimer.reset();
+					autoTimer.start(); 
+					
+					//TODO: Will the robot ACTUALLY stop? 
+
+				}
+				break;
+			}
+
+			 
+			
+			case 2: //backs up to the right position
+			{
+				if (autoTimer.get()<CDF_BACKUP_TIME)
+				{
+					myRobot.drive(-0.2, 0);
+				}
+				else
+				{
+					autoStep = 3; 
+					adjustArmHeight(INTAKEHEIGHT); //TODO: Is this height good? 
+				}
+				break; 
+			}
+			
+			case 3: //wait until the arm is at that height 
+			{ 
+				if (armR.get()<INTAKEHEIGHT)
+				{
+					autoStep = 4;
+					autoTimer.reset();
+					autoTimer.start();
+					tPower = PID_SPEED_SLOW; 
+					gPid.enable();
+				}
+				break; 
+			}
+			
+			
+			
+			case 4: //move forward over the cheval 
+			{
+				if (autoTimer.get()>TIME_TO_MID_OF_CDF)
+				{
+					startCalibration(); 
+					autoStep = 5;
+				}
+				break; 
+			}
+			
+			case 5: //senses when over the cheval 
+			{
+				if (autoTimer.get()>TIME_TO_OVER_CDF)
+				{
+					gPid.disable();
+					autoStep =6; 
+				}
+				break;
+			}
+			
+			case 6: //moves backwards slowly
+			{
+				myRobot.drive(-0.175, 0);
+				break; 
+			}
+
+			}
+		}
+		
 		if (defense.equals("lowbar") || defense.equals("lowbarNS")) 
 		{
 			//TODO: Consider faster speeds for auto, but only if accuracy is high
