@@ -89,12 +89,6 @@ public class Robot extends IterativeRobot {
 	double lastPosition; 
 	Timer calTimer = new Timer(); 
 
-	//variables for gyro turning method
-	boolean isTurning = false; 
-	boolean	isTurned = false;
-	boolean turnBack = false; 
-	double holdPosition = 180; 
-
 	//variables for our PID
 	PIDController gPid;
 	PIDController pidTurn; 
@@ -186,7 +180,8 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Low Bar", "lowbar");
 		chooser.addObject("Reach Defense", "reach");
 		chooser.addObject("Low Bar No Shoot", "lowbarNS");
-		chooser.addObject("Cheval!" , "cdf");
+		chooser.addObject("Cheval! PID" , "cdfpid");
+		chooser.addObject("Cheval NO PID", "cdfnopid");
 		SmartDashboard.putData("Autonomous Defense Chooser", chooser);
 		//TODO Add robot width for spybot to adjust auto
 
@@ -199,10 +194,7 @@ public class Robot extends IterativeRobot {
 		gPid = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutput(), 0.001); //the lowest possible period is 0.001
 		gPid.setInputRange(-360, 360);
 		
-		pidTurn = new PIDController(pGain, iGain, dGain, gType, new GyroPIDOutputForTurn(), 0.001); //the lowest possible period is 0.001
-		pidTurn.setInputRange(-360, 360);
 		
-	
 		
 	
 	}//End robotInit
@@ -228,11 +220,15 @@ public class Robot extends IterativeRobot {
 		} else if (defense.equals("lowbarNS")) {
 			System.out.println("RUNNING LOW BAR, NO SHOOT");
 		}
-
+		else if (defense.equals("cdfpid")) {
+			System.out.println("RUNNING CDF, with PID");
+		}
+		else if (defense.equals("cdfnopid")) {
+			System.out.println("RUNNING CDF, NO PID");
+		}
 
 		startCalibration(); //starts to bring up the ball intake arm
 		 
-		
 	}
 
 
@@ -246,6 +242,8 @@ public class Robot extends IterativeRobot {
 
 	public void autonomousPeriodic() 
 	{
+		//TODO - could we invert our motors 
+		
 		if (autoStep >3){ 
 			//camera displayed on dahsboard
 			activeCamera.getImage(img);
@@ -267,7 +265,7 @@ public class Robot extends IterativeRobot {
 		}
 
 		//TODO: go through the entire CDF code! 
-		if (defense.equals("cdf"))
+		if (defense.equals("cdfpid"))
 		{
 			
 			switch(autoStep)
@@ -277,19 +275,19 @@ public class Robot extends IterativeRobot {
 				tPower = PID_SPEED_TO_FLAP; //set to higher power
 				gPid.setSetpoint(0);
 				gPid.enable();
-				autoStep = 1; 
+				autoStep = 10; 
 				System.out.println("going to 1");
 				autoTimer.reset();
 				autoTimer.start();
 				break; 
 			}
 
-			case 1: //drives into the defence (should use that to line up) 
+			case 10: //drives into the defence (should use that to line up) 
 			{
 
 				if (autoTimer.get()>AUTO_TIME_DEFENSE) //will this time be enough 
 				{
-					autoStep = 2; 
+					autoStep = 20; 
 					System.out.println("going to 2");
 					gPid.reset(); 
 					myRobot.drive(0,  0); 
@@ -304,7 +302,7 @@ public class Robot extends IterativeRobot {
 
 			 
 			
-			case 2: //backs up to the right position
+			case 20: //backs up to the right position
 			{
 				if (autoTimer.get()<CDF_BACKUP_TIME)
 				{
@@ -312,17 +310,17 @@ public class Robot extends IterativeRobot {
 				}
 				else
 				{
-					autoStep = 3; 
+					autoStep = 30; 
 					adjustArmHeight(INTAKEHEIGHT); //TODO: Is this height good? 
 				}
 				break; 
 			}
 			
-			case 3: //wait until the arm is at that height 
+			case 30: //wait until the arm is at that height 
 			{ 
 				if (armR.get()<INTAKEHEIGHT)
 				{
-					autoStep = 4;
+					autoStep = 40;
 					autoTimer.reset();
 					autoTimer.start();
 					tPower = PID_SPEED_SLOW; 
@@ -333,27 +331,114 @@ public class Robot extends IterativeRobot {
 			
 			
 			
-			case 4: //move forward over the cheval 
+			case 40: //move forward over the cheval 
 			{
 				if (autoTimer.get()>TIME_TO_MID_OF_CDF)
 				{
 					startCalibration(); 
-					autoStep = 5;
+					autoStep = 50;
 				}
 				break; 
 			}
 			
-			case 5: //senses when over the cheval 
+			case 50: //senses when over the cheval 
 			{
 				if (autoTimer.get()>TIME_TO_OVER_CDF)
 				{
 					gPid.disable();
-					autoStep =6; 
+					autoStep =60; 
 				}
 				break;
 			}
 			
-			case 6: //moves backwards slowly
+			case 60: //moves backwards slowly
+			{
+				myRobot.drive(-0.175, 0);
+				break; 
+			}
+
+			}
+		}
+		
+		//TODO: go through the entire CDF no PID code! 
+		if (defense.equals("cdfnopid"))
+		{
+			
+			switch(autoStep)
+			{ 
+			case 0: //start the PID to go straight
+			{
+				autoStep = 10; 
+				System.out.println("going to 1");
+				autoTimer.reset();
+				autoTimer.start();
+				break; 
+			}
+
+			case 10: //drives into the defence (should use that to line up) 
+			{
+
+				myRobot.drive(PID_SPEED_TO_FLAP, 0);
+				if (autoTimer.get()>AUTO_TIME_DEFENSE) //will this time be enough 
+				{
+					autoStep = 20; 
+					System.out.println("going to 2");
+					myRobot.drive(0,  0); 
+					autoTimer.reset();
+					autoTimer.start(); 
+				}
+				break;
+			}
+		
+			case 20: //backs up to the right position
+			{
+				if (autoTimer.get()<CDF_BACKUP_TIME)
+				{
+					myRobot.drive(-0.2, 0);
+				}
+				else
+				{
+					autoStep = 30; 
+					adjustArmHeight(INTAKEHEIGHT); //TODO: Is this height good? 
+				}
+				break; 
+			}
+			
+			case 30: //wait until the arm is at that height 
+			{ 
+				if (armR.get()<INTAKEHEIGHT)
+				{
+					autoStep = 40;
+					autoTimer.reset();
+					autoTimer.start();
+				}
+				break; 
+			}
+								
+			case 40: //move forward over the cheval 
+			{
+				myRobot.drive(PID_SPEED_SLOW, 0); 
+				
+				if (autoTimer.get()>TIME_TO_MID_OF_CDF)
+				{
+					startCalibration(); 
+					autoStep = 50;
+				}
+				break; 
+			}
+			
+			case 50: //senses when over the cheval 
+			{
+				myRobot.drive(PID_SPEED_SLOW, 0);
+				if (autoTimer.get()>TIME_TO_OVER_CDF)
+				{
+					myRobot.drive(0, 0);
+					autoStep =60; 
+				}
+				break;
+			}
+			
+			case 60: //moves backwards slowly
 			{
 				myRobot.drive(-0.175, 0);
 				break; 
@@ -659,12 +744,7 @@ public class Robot extends IterativeRobot {
 		if (isCalibrating)
 			checkCalibrationStatus(); 
 
-		//for turning 180 degrees
-		if (isTurning)
-		{
-			checkTurningStatus();  
-		}
-
+		
 		//this line was also uncommented at CIR - should be commented out 
 		//System.out.println(currentPosition);
  
@@ -696,17 +776,7 @@ public class Robot extends IterativeRobot {
 		 	rotateValue = rotateValue*0.6; */ 
 		
 
-		//if driver tries to turn the robot, stop running the 180 degree turn method
-		if (rotateValue > 0 || moveValue > 0)
-		{
-			isTurning = false;
-			pidTurn.reset();
-			/*System.out.println("Turn has been canceled " +"rotate value: " + rotateValue + "  " =*/
-		}
-
-
-		if (!isTurning && !pidTurn.isEnabled()) //makes sure the driver isn't trying to use the 180 degree turn method
-			myRobot.arcadeDrive(moveValue, rotateValue, true); 
+		myRobot.arcadeDrive(moveValue, rotateValue, true); 
 
 		//large dead zone for the bag motors - that button on the xbox doesn't always go back to 0 position easily 
 		double intakeAxis = xboxCtr.getRawAxis(5); 
@@ -757,33 +827,7 @@ public class Robot extends IterativeRobot {
 			System.out.println("Put image on screen");
 		}
 		
-		//starts the 180 degree turn
-		if (!isTurning && !pidTurn.isEnabled())
-		{
-			if(joystick.getRawButton(2))
-				startTurning();
-			while(joystick.getRawButton(2));
-		}
 		
-		if (!isTurning && !pidTurn.isEnabled())
-		{
-			if(joystick.getRawButton(4))
-			{
-				gyro.reset();
-				pidTurn.setSetpoint(gyro.getAngle()+180);
-				pidTurn.enable(); 
-			}
-			while(joystick.getRawButton(4)); 
-		}
-		
-				
-		//provides the driver another way to get out of 180 degree turn method
-		if (joystick.getRawButton(5)) // see if Jack likes this button 
-		{
-			isTurning = false; 
-			pidTurn.reset(); 
-		}
-
 		//allows the drive to invert the motors to help with driving backwards
 		if (joystick.getRawButton(3)) //changed 3.14 from button 2 to button 3
 		{  	     		
@@ -940,56 +984,7 @@ public class Robot extends IterativeRobot {
 		return false;  
 	} 
 
-	//sets up all variables for the 180 degree turn
-	public void startTurning()
-	{
-		gyro.reset();
-		isTurning=true; 
-		isTurned = false; 
-		turnBack = false; 
-		holdPosition = gyro.getAngle()+180; //theoretically should be 180 because gyro just reset
-		myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
-
-	}
-
-
-
-	public boolean checkTurningStatus()
-	{
-
-		double newPosition = gyro.getAngle(); 
-
-		if (turnBack)
-		{
-			myRobot.setLeftRightMotorOutputs(0.25, -0.25); //turns robot back to hold position slowly 
-			if (holdPosition > newPosition)
-			{
-				myRobot.setLeftRightMotorOutputs(0, 0);
-				isTurning = false; 
-				isTurned = true; 
-				turnBack = false; 
-				return true; 
-			}
-		}
-
-		else 
-		{
-			if (newPosition < 120)
-				myRobot.setLeftRightMotorOutputs(-0.5, 0.5);
-
-			else  
-				myRobot.setLeftRightMotorOutputs(-0.35, 0.35); //slows robot down when it gets closer
-
-			if (newPosition > holdPosition) //sees if robot has passed the holdPosition 
-			{
-				turnBack = true; 
-
-			}
-		}
-
-		return false;  
-	} 
-
+	
 	public void adjustArmHeight (double height)
 	{
 		//makes sure the arm has been calibrated at least once during the match 
@@ -1012,20 +1007,6 @@ public class Robot extends IterativeRobot {
 	{
 		double v = (volts*43.796)-2.6048; //equation determined graphically after running some tests
 		return v; 
-	}
-
-
-	public class GyroPIDOutputForTurn implements PIDOutput 
-	{
-
-		public void pidWrite(double output) 
-		{
-			double scaled = output*0.3; 
-			
-			if(pidTurn.isEnabled())
-				myRobot.setLeftRightMotorOutputs(-1*(scaled), scaled);
-		}
-		
 	}
 
 	
