@@ -43,6 +43,7 @@ public class Robot extends IterativeRobot {
 
 	//auto variables
 	Timer autoTimer = new Timer();
+	Timer autoCamTimer = new Timer(); 
 	int autoStep;
 	private final static double AUTO_TURN_TO = 55;
 	private final static double ADT_CASTLE_WALL = 55; //59 IS SLIGHTLY TOO RIGHT
@@ -57,13 +58,11 @@ public class Robot extends IterativeRobot {
 	private final static double PID_SPEED_TO_CASTLE = 0.4; 
 	private final static double PID_SPEED_SLOW = 0.175; 
 	private final static double AUTO_TIME_DEFENSE = 0.75; 
-	
+	private final static double AUTO_TIME_REACH_CDF = 3;
 	//cdf auto variables
 	private static final double CDF_BACKUP_TIME = 0.2;
 	private static final double TIME_TO_MID_OF_CDF = 2; 
 	private static final double TIME_TO_OVER_CDF = 5; 
-	
-	
 	
 	//sensors
 	ADXRS450_Gyro gyro;
@@ -94,7 +93,6 @@ public class Robot extends IterativeRobot {
 	PIDController pidTurn; 
 	double tPower; 
 
-
 	int teleopFunction;
 	TeleopFunctions lastChosen = TeleopFunctions.NONE;
 	Timer teleTimer = new Timer();
@@ -113,6 +111,8 @@ public class Robot extends IterativeRobot {
 	 * This function is run when the robot is first started up and should be
 	 * used for any initialization code.
 	 */
+	
+	//TODO: look at putting camera in to Init 
 	public void robotInit() {
 
 		//camera set up  
@@ -141,23 +141,22 @@ public class Robot extends IterativeRobot {
 		intake = new SICPRobotDrive(5, 6);
 
 		//sets up joysticks
-	/*	Joystick test = new Joystick (1);*/
+		Joystick test = new Joystick (1);
 		joystick = new Joystick(0);
-		xboxCtr = new Joystick (1); 
 		
-		//TODO add this back in when can run two joysticks 
 		
-		/*if (test.getIsXbox())
+		//TODO test that this works!  
+		
+		if (test.getIsXbox())
 		{ 
-			joystick = new Joystick(0);  
 			xboxCtr = test;
 		}
 		
 		else 
 		{ 
+			xboxCtr = joystick;
 			joystick = test; 
-			xboxCtr = new Joystick(0); 
-		}*/
+		}
 			
 		
 		//sets up gyro 
@@ -180,11 +179,10 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Low Bar", "lowbar");
 		chooser.addObject("Reach Defense", "reach");
 		chooser.addObject("Low Bar No Shoot", "lowbarNS");
-		chooser.addObject("Cheval! PID" , "cdfpid");
+		chooser.addObject("Cheval PID" , "cdfpid");
 		chooser.addObject("Cheval NO PID", "cdfnopid");
 		SmartDashboard.putData("Autonomous Defense Chooser", chooser);
-		//TODO Add robot width for spybot to adjust auto
-
+	
 		//sets up variables for PID with the gyro 
 		double pGain = 0.9;
 		double iGain = 0.00521135; 
@@ -204,7 +202,8 @@ public class Robot extends IterativeRobot {
 	 */
 	public void autonomousInit()  
 	{    	
-
+		autoCamTimer.start(); 
+		
 		System.out.println("We are in autonomousInit");
 		gyro.reset();
 		System.out.println("We have reset gyro"); 
@@ -239,12 +238,12 @@ public class Robot extends IterativeRobot {
 	 */
 
 	int counter =0; 
-
+	
 	public void autonomousPeriodic() 
 	{
 		//TODO - could we invert our motors 
 		
-		if (autoStep >3){ 
+		if (autoCamTimer.get() > 5){ 
 			//camera displayed on dahsboard
 			activeCamera.getImage(img);
 			server.setImage(img); // puts image on the dashboard 
@@ -253,8 +252,7 @@ public class Robot extends IterativeRobot {
 		if (counter++%20 ==0 )
 			System.out.println("Ultrasonic: " + (inchFromHRLV(ultrasonic.getVoltage())) + "\tGyro: " + gyro.getAngle());
 
-		//TODO - we think getaverage will avoid erroneous spikes.  Only case
-		// 2 of lowbar used to use average, though.  all others just used get
+	
 		double ultraDistance = inchFromHRLV(ultrasonic.getAverageVoltage()); //gets sonar reading
 
 		//calibration 
@@ -285,7 +283,7 @@ public class Robot extends IterativeRobot {
 			case 10: //drives into the defence (should use that to line up) 
 			{
 
-				if (autoTimer.get()>AUTO_TIME_DEFENSE) //will this time be enough 
+				if (autoTimer.get()>AUTO_TIME_REACH_CDF) //will this time be enough 
 				{
 					autoStep = 20; 
 					System.out.println("going to 2");
@@ -318,7 +316,7 @@ public class Robot extends IterativeRobot {
 			
 			case 30: //wait until the arm is at that height 
 			{ 
-				if (armR.get()<INTAKEHEIGHT)
+				if (Math.abs(armR.get()-INTAKEHEIGHT)<100)
 				{
 					autoStep = 40;
 					autoTimer.reset();
@@ -335,7 +333,7 @@ public class Robot extends IterativeRobot {
 			{
 				if (autoTimer.get()>TIME_TO_MID_OF_CDF)
 				{
-					startCalibration(); 
+					adjustArmHeight(SHOOTHEIGHT); //is this high enough
 					autoStep = 50;
 				}
 				break; 
@@ -343,6 +341,7 @@ public class Robot extends IterativeRobot {
 			
 			case 50: //senses when over the cheval 
 			{
+				adjustArmHeight(SHOOTHEIGHT);
 				if (autoTimer.get()>TIME_TO_OVER_CDF)
 				{
 					gPid.disable();
@@ -353,7 +352,7 @@ public class Robot extends IterativeRobot {
 			
 			case 60: //moves backwards slowly
 			{
-				myRobot.drive(-0.175, 0);
+				myRobot.drive(-0.01, 0);
 				break; 
 			}
 
@@ -379,7 +378,7 @@ public class Robot extends IterativeRobot {
 			{
 
 				myRobot.drive(PID_SPEED_TO_FLAP, 0);
-				if (autoTimer.get()>AUTO_TIME_DEFENSE) //will this time be enough 
+				if (autoTimer.get()>AUTO_TIME_REACH_CDF) //will this time be enough 
 				{
 					autoStep = 20; 
 					System.out.println("going to 2");
@@ -406,7 +405,8 @@ public class Robot extends IterativeRobot {
 			
 			case 30: //wait until the arm is at that height 
 			{ 
-				if (armR.get()<INTAKEHEIGHT)
+				//TODO subtract and do ABS (same for pid version)
+				if (Math.abs(armR.get()-INTAKEHEIGHT)<100)
 				{
 					autoStep = 40;
 					autoTimer.reset();
@@ -421,7 +421,7 @@ public class Robot extends IterativeRobot {
 				
 				if (autoTimer.get()>TIME_TO_MID_OF_CDF)
 				{
-					startCalibration(); 
+					adjustArmHeight(SHOOTHEIGHT); 
 					autoStep = 50;
 				}
 				break; 
@@ -429,6 +429,7 @@ public class Robot extends IterativeRobot {
 			
 			case 50: //senses when over the cheval 
 			{
+				adjustArmHeight(SHOOTHEIGHT);
 				myRobot.drive(PID_SPEED_SLOW, 0);
 				if (autoTimer.get()>TIME_TO_OVER_CDF)
 				{
@@ -440,7 +441,7 @@ public class Robot extends IterativeRobot {
 			
 			case 60: //moves backwards slowly
 			{
-				myRobot.drive(-0.175, 0);
+				myRobot.drive(-0.01, 0);
 				break; 
 			}
 
@@ -562,7 +563,7 @@ public class Robot extends IterativeRobot {
 					gPid.disable();
 					myRobot.setLeftRightMotorOutputs(0,0);
 					autoStep = 70;
-					//TODO - Consider going to higher shooting height
+				
 					adjustArmHeight(SHOOTHEIGHT); //intake put to the right position to shoot
 					System.out.println("going to 7");
 				}
@@ -698,6 +699,7 @@ public class Robot extends IterativeRobot {
 	 * This function is called once each time the robot enters tele-operated mode*/
 
 
+	//TODO: put camera switch on Angela's controller 
 	public void teleopInit()
 	{
 
@@ -937,6 +939,7 @@ public class Robot extends IterativeRobot {
 		System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage()))+ "\tGyro: " + gyro.getAngle());
 	} //End Test Periodic 
 
+		
 	public void startCalibration()
 	{
 		//sets up all variables for calibrating
@@ -965,7 +968,7 @@ public class Robot extends IterativeRobot {
 
 		//stops calibration if the current encoder position is different from the previous by less than 100
 		//stops calibration is it has been running for over 10 seconds 
-		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>10) 
+		if (Math.abs(newPosition-lastPosition)<100 || calTimer.get()>5) 
 		{
 			calTimer.stop();
 			calTimer.reset();
