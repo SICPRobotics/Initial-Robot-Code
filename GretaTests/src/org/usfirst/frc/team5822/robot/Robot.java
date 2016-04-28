@@ -179,8 +179,9 @@ public class Robot extends IterativeRobot {
 		chooser.addDefault("Low Bar", "lowbar");
 		chooser.addObject("Reach Defense", "reach");
 		chooser.addObject("Low Bar No Shoot", "lowbarNS");
-		chooser.addObject("Cheval PID" , "cdfpid");
-		chooser.addObject("Cheval NO PID", "cdfnopid");
+		/*chooser.addObject("Cheval PID" , "cdfpid");
+		chooser.addObject("Cheval NO PID", "cdfnopid");*/
+		chooser.addObject("Spy Bot", "spy");
 		SmartDashboard.putData("Autonomous Defense Chooser", chooser);
 	
 		//sets up variables for PID with the gyro 
@@ -224,6 +225,9 @@ public class Robot extends IterativeRobot {
 		}
 		else if (defense.equals("cdfnopid")) {
 			System.out.println("RUNNING CDF, NO PID");
+		}
+		else if (defense.equals("spy")){
+			System.out.println("RUNNING SPY");
 		}
 
 		startCalibration(); //starts to bring up the ball intake arm
@@ -445,6 +449,141 @@ public class Robot extends IterativeRobot {
 				break; 
 			}
 
+			}
+		}
+		
+		if (defense.equals("spy"))
+		{
+			switch (autoStep)
+			{
+			case 0: //this case is reserved if we need to add additional backup steps 
+			{
+				autoStep = 10; 
+				break; 
+			}
+			
+			case 10:
+			{
+				if (gyro.getAngle()<45)
+					myRobot.setLeftRightMotorOutputs(0,-0.2);
+				else
+				{
+					myRobot.drive(0, 0);
+					autoStep = 20; 
+				}
+				break;
+			}
+			
+			case 20: 
+			{
+				if (gyro.getAngle()>45)
+					myRobot.setLeftRightMotorOutputs(0,0.2); 
+				else
+				{
+					myRobot.drive(0, 0);
+					autoStep = 30; 
+					gyro.reset();
+					tPower = PID_SPEED_SLOW;
+					gPid.setSetpoint(0);
+					gPid.enable();
+					autoStep = 30; 
+				}
+				break; 
+			}
+			
+			case 30: // goes backwards until back at the ultrasonic threshold 
+			{
+
+				if (ultraDistance >= ADT_CASTLE_WALL)  
+				{
+					System.out.println(ultraDistance);
+					gPid.disable();
+					myRobot.setLeftRightMotorOutputs(0,0);
+					autoStep = 40;
+				
+					adjustArmHeight(SHOOTHEIGHT); //intake put to the right position to shoot
+				
+				}
+				break;
+			}
+
+			case 40: 
+			{
+
+				if (gyro.getAngle()< AUTO_TURN_TO) //this angle looked good at CIR
+					myRobot.setLeftRightMotorOutputs(-0.3,0.3);
+
+				else 
+				{
+					autoStep = 50; 
+					System.out.println("going to 8");
+					myRobot.setLeftRightMotorOutputs(0,0);
+				}
+
+				break;
+			}
+
+			case 50: // turns slowly back in case of overshoot 
+			{
+				if (gyro.getAngle() >= AUTO_TURN_TO) 
+					myRobot.setLeftRightMotorOutputs(0.17,-0.17);
+				else 
+				{
+					autoStep = 60; 
+				}
+
+				break;
+			}
+
+			case 60: //uses a PID to start to go forward
+			{
+				myRobot.drive(0, 0);
+				gPid.setSetpoint(AUTO_TURN_TO); //test this angle
+				tPower = PID_SPEED_TO_CASTLE; 
+				gPid.enable();
+
+				autoTimer.reset();
+				autoTimer.start();
+				autoStep=70; 
+				System.out.println("going to 11");
+
+				break;
+			}
+
+			case 70: //drive forward for time
+			{
+
+				if (autoTimer.get() > AUTO_SHOOT_DELAY) //test this num
+				{
+					gPid.reset();
+					myRobot.setLeftRightMotorOutputs(0,0);
+					System.out.println("going to 12");
+					autoStep = 80; 
+				}
+
+				break;
+			}
+
+			case 80: //shoot
+			{
+				
+				intake.setLeftRightMotorOutputs(-1, -1);
+			
+				if (autoTimer.get()>AUTO_SHOOT_UNTIL_TIME)  
+				{
+					autoStep = 90;
+					System.out.println("going to 13");
+
+				}
+
+				break;
+			}
+
+			case 90: 
+			{
+				myRobot.setLeftRightMotorOutputs(0,0);
+				intake.drive(0, 0);
+				break; 
 			}
 		}
 		
@@ -689,8 +828,9 @@ public class Robot extends IterativeRobot {
 			}
 
 			}
-
 		}
+		}
+		
 	}
 
 
