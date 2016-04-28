@@ -464,8 +464,8 @@ public class Robot extends IterativeRobot {
 			
 			case 10:
 			{
-				if (gyro.getAngle()<45)
-					myRobot.setLeftRightMotorOutputs(0,-0.2);
+				if (gyro.getAngle()<44)
+					myRobot.setLeftRightMotorOutputs(0,0.4);
 				else
 				{
 					myRobot.drive(0, 0);
@@ -477,13 +477,13 @@ public class Robot extends IterativeRobot {
 			case 20: 
 			{
 				if (gyro.getAngle()>45)
-					myRobot.setLeftRightMotorOutputs(0,0.2); 
+					myRobot.setLeftRightMotorOutputs(0,-0.2); 
 				else
 				{
 					myRobot.drive(0, 0);
 					autoStep = 30; 
 					gyro.reset();
-					tPower = PID_SPEED_SLOW;
+					tPower = (-1)*PID_SPEED_SLOW;
 					gPid.setSetpoint(0);
 					gPid.enable();
 					autoStep = 30; 
@@ -567,7 +567,7 @@ public class Robot extends IterativeRobot {
 			case 80: //shoot
 			{
 				
-				intake.setLeftRightMotorOutputs(-1, -1);
+				/*intake.setLeftRightMotorOutputs(-1, -1);*/
 			
 				if (autoTimer.get()>AUTO_SHOOT_UNTIL_TIME)  
 				{
@@ -879,7 +879,7 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() 
 	{
 		//this line was sometimes was uncommented in a match but should always be commented out unless troubleshooting
-		//System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage())) + "  Gyro: " + gyro.getAngle());
+		System.out.println("UltrasonicHRLV: " + (inchFromHRLV(ultrasonic.getVoltage())) + "  Gyro: " + gyro.getAngle());
 
 		
 		//calibrates the arm (raises it up until the hard stop) 
